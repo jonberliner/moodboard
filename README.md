@@ -7,6 +7,9 @@ moodboard recommendation repo
 + [blogpost on fine-tuning clip](https://huggingface.co/blog/fine-tune-clip-rsicd)
 + [loss function for clip](https://github.com/huggingface/transformers/blob/v4.29.1/src/transformers/models/clip/modeling_clip.py#L1151)
 
++ [LiT: Zero-shot transfer with locked image tuning](https://huggingface.co/docs/transformers/model_doc/vision-text-dual-encoder)
+    + another approach said to do well for zero-shot transfer that may perform better than CLIP after fine-tuning
+
 ## TODO:
 1. run untuned CLIP model over clothing dataset, filtered by clothing category
     + text-to-image rec
