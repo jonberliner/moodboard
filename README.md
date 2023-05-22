@@ -11,10 +11,13 @@ moodboard recommendation repo
 + [LiT: Zero-shot transfer with locked image tuning](https://huggingface.co/docs/transformers/model_doc/vision-text-dual-encoder)
     + another approach said to do well for zero-shot transfer that may perform better than CLIP after fine-tuning
 
++ [faiss](https://github.com/facebookresearch/faiss/wiki/Getting-started): a vector search library for doing nearest neighbors for recommendation
+
 ## TODO:
 1. run untuned CLIP model over clothing dataset, filtered by clothing category
     + text-to-image rec
-    + image-to-image rec (see ipynb in repo for how to get image features only) 
+    ~~+ image-to-image rec (see ipynb in repo for how to get image features only)~~
+    + run search in scalable manner using vector database for candidates such as [faiss](https://github.com/facebookresearch/faiss/wiki/Getting-started)
 
 2. replicate fine-tuning clip
 3. find a new clothing or product dataset with textual metadata of the products
