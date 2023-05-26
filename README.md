@@ -8,6 +8,7 @@ moodboard recommendation repo
 + [toy clothing dataset 1](https://github.com/alexeygrigorev/clothing-dataset)
 + [amazon fashion dataset](https://data.world/promptcloud/amazon-fashion-products-2020)
 + [fashion datasets](https://data.world/datasets/fashion)
++ [ebay feed sdk)](https://github.com/eBay/FeedSDK-Python)
 
 ### models
 + [huggingface's clip](https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPModel.forward.returns)
