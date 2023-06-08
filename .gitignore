@@ -167,3 +167,6 @@ pytest_cache/
 
 # VSCode
 .vscode/
+
+# The data directory
+gist_app/data/
