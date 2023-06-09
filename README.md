@@ -39,3 +39,8 @@ moodboard recommendation repo
     + etsy and ebay run over millions, but the match quality is low to the point of not really useful.
 + focus on user interface - adding the extra step where the user says what type of product they are looking for
     + etsy and ebay suffer from trying to exactly match the photo, to the point where they're constantly recommending actual photos.  this one extra step can dramatically improve the quality of our matches, frees up the ability to search on "gist" rather than exact match.  It may also be more fun for the user, as we educate them on searching via gist/vibe rather than exact match.  finally, this is a true differentiator from the other methods.  if we show it's a better experience, this takes us out of direct competition with etsy/ebay current offerings, and gives routes perchance even to patents.
+
+## To use the web app:
++ Run >> python gist_app/app.py from the top-level directory
++ Go to http://127.0.0.1:5000/search_image
++ Input any image url from pinterest into the search bar
