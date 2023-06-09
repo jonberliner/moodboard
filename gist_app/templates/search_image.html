@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Search Image</title>
+    <style>
+        .image-container {
+            max-width: 50px;
+            margin: 0 auto;
+        }
+        .scaled-image {
+            width: 10%;
+            height: auto;
+        }
+    </style>
+  </head>
+  <body>
+
+    <!-- If the error variable is not empty, display the error -->
+    <h1>Search an Image</h1>
+    <form method="POST" action="{{ url_for('search_image') }}">
+      <label for="url">Enter URL:</label>
+      <input type="text" id="search-url" name="search-url" placeholder="https://example.com" value="{{ search_image_url }}" required>
+
+      <!-- Get the number of results to return as a freeform integer entry -->
+        <label for="num-results">Number of Results:</label>
+        <input type="number" id="num-results" name="num-results" min="1" max="20" value="{{ num_results }}" required>
+
+        <!-- Provide a category dropdown list -->
+        <label for="category">Category:</label>
+        <select id="image-category" name="image-category">
+            
+            <!-- Fill it with items from the input category_list -->
+            {% for category in categories %}
+                <option value="{{ category }}" {% if category == category_selected %}selected{% endif %}>{{ category }}</option>
+
+                <!-- <option value="{{ category }}">{{ category }}</option> -->
+            {% endfor %}
+        </select>
+
+        <button type="submit">Search</button>
+    </form>
+
+    <br> <!-- Add a hard break -->
+
+    <!-- If the search_image variable is not empty, display the image -->
+    {% if search_image %}
+      <h2>Search Image:</h2>
+      <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
+    {% endif %}
+
+    {% if images %}
+      <h2>Images:</h2>
+      {% for image in images %}
+        <img src="data:image/jpeg;base64,{{ image }}">
+      {% endfor %}
+    {% endif %}
+
+</body>
+</html>
