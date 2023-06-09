@@ -167,3 +167,7 @@ class Gister:
     
         # Search
         return self.search_image(image, category, num_results)
+    
+    # Helper to return the product categories
+    def get_product_categories(self) -> List[str]:
+        return self.products.metadata.category.unique()

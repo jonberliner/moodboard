@@ -1,5 +1,8 @@
 import os
 import requests
+import base64
+import io
+
 
 # Get the filepath to the data directory
 def get_data_dir():
@@ -36,3 +39,12 @@ def py_wget(url, save_as):
         print("Download completed!")
     else:
         print("Error downloading the file!")
+
+# Convert a PIL image to a base64 encoded string
+def image_to_base64(image):
+
+    # Convert to base64
+    data = io.BytesIO()
+    image.save(data, "JPEG")
+    encoded_img_data = base64.b64encode(data.getvalue())
+    return encoded_img_data.decode('utf-8')
