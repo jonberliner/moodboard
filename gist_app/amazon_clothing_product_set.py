@@ -6,13 +6,16 @@ import requests
 from tqdm import tqdm
 from typing import List
 
+import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
+from product_set import ProductSet
+from product import Product
 
-from utils.all_utils import py_wget
+from utils.all_utils import py_wget, get_data_dir
 
-class AmazonClothingDataset(Dataset):
+class AmazonClothingProductSet(Dataset, ProductSet):
     """
     dataset found at https://data.world/promptcloud/amazon-fashion-products-2020/file/marketing_sample_for_amazon_com-amazon_fashion_products__20200201_20200430__30k_data.ldjson
     downloads dataset images fast with multithreading, and includes 
@@ -86,7 +89,11 @@ class AmazonClothingDataset(Dataset):
             results = list(tqdm(executor.map(f, my_iter), total=len(my_iter)))
         return results
 
-        
+    # A static function to return the download path
+    @staticmethod
+    def get_download_path() -> str:
+        return os.path.join(get_data_dir(),'amazon_clothing_2020')
+
     def __getitem__(self, idx: int) -> (Image, str, str):
         md = self.metadata.iloc[idx]
         
@@ -100,6 +107,19 @@ class AmazonClothingDataset(Dataset):
     def __len__(self,) -> int:
         return len(self.metadata)
     
+    # Load the products
+    def load_products(self) -> None:
+
+        # Already loaded
+        pass
+    
+    # Load the images
+    def load_images(self) -> None:
+
+        # Already loaded
+        pass
+
+
     def subset_by_category(self, category: str):
         """return a dataset of only products in this category"""
         records = []
@@ -111,11 +131,49 @@ class AmazonClothingDataset(Dataset):
 
         return AmazonClothingDataset(image_dir=self.image_dir, records=records)
     
+    # Get the categories
+    def get_categories(self) -> List[str]:
+        return list(self.metadata.category.unique())
+
     def get_category_indices(self, category: str) -> np.array:
         """return the indices of all products in this category"""
         md = self.metadata[self.metadata.category == category]
         return md.index
     
+    def get_num_products(self) -> int:
+        return len(self.metadata)
+
+    # Create a virtual function to get the embeddings path
+    def get_embeddings_path(self) -> str:
+        return os.path.join(AmazonClothingProductSet.get_download_path(), "amazon_embeddings.npy")
+
+    # Get a product
+    def get_product(self, product_id: int) -> Product:
+
+        # Make sure we have enough
+        if product_id >= self.get_num_products():
+            raise ValueError("Product ID out of range")
+
+        # Return the product
+        product_parts = self.__getitem__(product_id)
+        return Product(product_parts[0], product_parts[1], product_parts[2])
+
+    # Create a virtual function to create embeddings
+    def create_embeddings(self, gister) -> List[torch.Tensor]:
+
+        # Create the embeddings
+        candidate_vembeds = []
+
+        # Use the data loader
+        count = 0
+        for imgs, labs, cats in tqdm(self.get_data_loader()):
+            count += len(imgs)
+            with torch.no_grad():
+                candidate_vembeds.append(gister.images_to_embeddings(imgs))
+
+        # And return
+        return candidate_vembeds
+
     # Get the data_loader helper for the embeddings
     def get_data_loader(self, batch_size: int = 32) -> DataLoader:
 

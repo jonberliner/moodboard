@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 from PIL import Image
 import requests
+import hashlib
 
 from gister import Gister
 from utils.all_utils import image_to_base64
@@ -58,19 +59,46 @@ def search_image():
                            images=result_data, search_image=search_data, num_results=num_results,
                            categories=categories, category_selected=category)
 
+# Create a route to receive ebay closure notifications
+@app.route("/ebay_notify", methods=['GET', 'POST'])
+def ebay_notify():
+
+    # Get the challenge_code parameter from the request
+    challenge_code = request.args.get("challenge_code")
+
+    # If we have a challenge code, return the response
+    if challenge_code is not None:
+
+        # Create a verification token
+        verificationToken = "GistApp_76DOUGLAS_2023_1_1_JONATHAN_1"
+
+        # And the endpoint
+        endpoint = 'https://gist.possibleworldsconsulting.com/ebay_notify'
+
+        # Create the hash
+        m = hashlib.sha256(str(challenge_code+verificationToken+endpoint).encode('utf-8'));
+
+        # Return the hash in json format
+        return {"challengeResponse": m.hexdigest()}
+
+    # Otherwise, return a 200
+    else:
+        return "OK"
+
 
 @app.route("/")
 def hello():
-  return str(app.gister.get_num_products())
-  return "Hello World!"
+  return "Gist!"
 
 if __name__ == "__main__":
   
+    # Only run the below if we're on local host
     with app.app_context():
         g = Gister()
-        g.load_products()
+        g.load_product_set('asos')
 
         # And store for later
         app.gister = g
 
-    app.run()
+    # Run on port 80
+    app.run(host='0.0.0.0', port=80)
