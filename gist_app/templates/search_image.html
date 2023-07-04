@@ -3,57 +3,126 @@
   <head>
     <title>Search Image</title>
     <style>
-        .image-container {
-            max-width: 50px;
-            margin: 0 auto;
+body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
         }
-        .scaled-image {
-            width: 10%;
-            height: auto;
+
+        #search-box {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
         }
-    </style>
+
+        #image-container {
+            display: flex;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        #left-image {
+            flex: 0 0 auto;
+            margin-right: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        #left-image2 {
+            flex: 0 0 auto;
+            margin-right: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            opacity: 0;
+        }
+
+        #right-images {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            flex-grow: 1;
+            align-items: flex-start;
+            margin-right: -10px;
+        }
+
+        .right-image {
+            width: 150px;
+            height: 150px;
+            margin: 5px;
+        }
+      </style>
+      <script>
+        window.addEventListener('scroll', function() {
+            var leftImage = document.getElementById('left-image');
+            var rect = leftImage.getBoundingClientRect();
+            var topOffset = rect.top;
+            
+            if (topOffset <= 0) {
+                leftImage.style.top = '100';
+                leftImage.style.position = 'fixed';
+            } else {
+                leftImage.style.top = '';
+                leftImage.style.position = '';
+            }
+        });
+    </script>
   </head>
   <body>
 
-    <!-- If the error variable is not empty, display the error -->
-    <h1>Search an Image</h1>
-    <form method="POST" action="{{ url_for('search_image') }}">
-      <label for="url">Enter URL:</label>
-      <input type="text" id="search-url" name="search-url" placeholder="https://example.com" value="{{ search_image_url }}" required>
 
-      <!-- Get the number of results to return as a freeform integer entry -->
-        <label for="num-results">Number of Results:</label>
-        <input type="number" id="num-results" name="num-results" min="1" max="20" value="{{ num_results }}" required>
+    <div id="image-container"> 
+      <!-- If the search_image variable is not empty, display the image-->
+      <div id="left-image">
+        {% if search_image %}
+          <h2>Search Image:</h2>
+          <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
+        {% endif %}
+      </div>
 
-        <!-- Provide a category dropdown list -->
-        <label for="category">Category:</label>
-        <select id="image-category" name="image-category">
-            
-            <!-- Fill it with items from the input category_list -->
-            {% for category in categories %}
-                <option value="{{ category }}" {% if category == category_selected %}selected{% endif %}>{{ category }}</option>
+      <div id="left-image2">
+        {% if search_image %}
+          <h2>Search Image:</h2>
+          <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
+        {% endif %}
+      </div>
 
-                <!-- <option value="{{ category }}">{{ category }}</option> -->
-            {% endfor %}
-        </select>
+      <div id="right-images">
+        <div>
+          <form method="POST" action="{{ url_for('search_image') }}">
+            <label for="url">Enter URL:</label>
+            <input type="text" id="search-url" name="search-url" placeholder="https://example.com" value="{{ search_image_url }}" required>
+    
+            <!-- Get the number of results to return as a freeform integer entry -->
+              <label for="num-results">Number of Results:</label>
+              <input type="number" id="num-results" name="num-results" min="1" max="20" value="{{ num_results }}" required>
+    
+              <!-- Provide a category dropdown list -->
+              <label for="category">Category:</label>
+              <select id="image-category" name="image-category">
+                  
+                  <!-- Fill it with items from the input category_list -->
+                  {% for category in categories %}
+                      <option value="{{ category }}" {% if category == category_selected %}selected{% endif %}>{{ category }}</option>
+    
+                      <!-- <option value="{{ category }}">{{ category }}</option> -->
+                  {% endfor %}
+              </select>
+    
+              <button type="submit">Search</button>
+          </form>
+        </div>
+        
+        <br>
 
-        <button type="submit">Search</button>
-    </form>
-
-    <br> <!-- Add a hard break -->
-
-    <!-- If the search_image variable is not empty, display the image -->
-    {% if search_image %}
-      <h2>Search Image:</h2>
-      <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
-    {% endif %}
-
-    {% if images %}
-      <h2>Images:</h2>
-      {% for image in images %}
-        <img src="data:image/jpeg;base64,{{ image }}">
-      {% endfor %}
-    {% endif %}
-
+        {% if images %}
+          {% for image in images %}
+            <img src="data:image/jpeg;base64,{{ image }}">
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
 </body>
 </html>
