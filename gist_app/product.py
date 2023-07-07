@@ -5,10 +5,19 @@ from PIL import Image
 class Product:
 
     # We'll have an image, label, and category
-    def __init__(self, image: Image, label: str, category: str) -> None:
+    def __init__(self, image: Image, label: str, category: str, url: str = None) -> None:
         self._image = image
         self._label = label
         self._category = category
+        self._url = url
+
+    @property
+    def url(self) -> str:
+        return self._url
+    
+    @url.setter
+    def url(self, url: str) -> None:
+        self._url = url
 
     @property
     def image(self) -> Image:

@@ -8,20 +8,22 @@ from io import BytesIO
 from typing import List
 import torch
 import numpy as np
+import io
 
-from utils.all_utils import get_data_dir
+from utils.all_utils import get_data_dir, get_s3_resource, get_s3_bucket_name
 from product_set import ProductSet
 from product import Product
 
 class AsosProductSet(ProductSet):
 
-    def __init__(self) -> None:
+    def __init__(self, data_source: str) -> None:
 
-        # Set the base path
-        self.data_path = AsosProductSet.get_data_path()
+        # Call the base class constructor
+        super().__init__(data_source)
 
         # For now, only one category
         self.category = 'WomensDresses'
+        self.category_id = '8799'
 
         # Will store everything here
         self.all_products = None
@@ -41,19 +43,52 @@ class AsosProductSet(ProductSet):
 
     # Return the embeddings path
     def get_embeddings_path(self) -> str:
-        return os.path.join(self.data_path,'asos_embeddings.npy')
+
+        # Get the base name
+        e_name = f'product_embeddings_{self.category_id}.npy'
+
+        # Different sources
+        if self.data_source == 'local':
+            return os.path.join(AsosProductSet.get_data_path(),e_name)
+
+        elif self.data_source == 's3':
+            return f'asos/{e_name}'
+        else:
+            raise ValueError(f"Unknown source {self.data_source}")
 
     # Load the products
     def load_products(self) -> None:
 
-        # Error if we don't have the products
-        products_path = os.path.join(self.data_path,'all_products.json')
-        if not os.path.exists(products_path):
-            raise ValueError("No products found")
+        # We're named after the product id
+        file_name = f'all_products_{self.category_id}.json'
 
-        # Load the products
-        with open(products_path, 'r') as f:
-            self.all_products = json.load(f)
+        if self.data_source == 'local':
+
+            # Error if we don't have the products
+            products_path = os.path.join(AsosProductSet.get_data_path(),file_name)
+            if not os.path.exists(products_path):
+                raise ValueError("No products found")
+
+            # Load the products
+            with open(products_path, 'r') as f:
+                self.all_products = json.load(f)
+
+        elif self.data_source == 's3':
+
+            # get the s3 resource
+            s3 = get_s3_resource()
+
+            # Get an object from the bucket
+            print("Loading products from s3...")
+            obj = s3.Object(get_s3_bucket_name(), 'asos/'+file_name)
+
+            # And convert the contents to json
+            self.all_products = json.loads(obj.get()['Body'].read().decode('utf-8'))
+
+        else:
+            raise ValueError(f"Unknown source {self.data_source}")
+
+        # And log
         print(f"Loaded {self.get_num_products()} products")
 
     # Return the number of products
@@ -111,27 +146,81 @@ class AsosProductSet(ProductSet):
         # Get the product info
         product = self.all_products[product_id]
 
-        # Load the image
+        # Load if we don't already have it
+        if 'image' not in product:
+            self.load_image(product_id)
+
+        # Return the product
+        return Product(label=product['name'], image=product['image'], category=self.category, url='https://www.asos.com/'+product['url'])
+
+    # Helper function to load an image
+    def load_image(self, product_id):
+
+        # Get the product and path
+        product = self.all_products[product_id]
         image_path = product['image_path']
+
         try:
-            image = Image.open(image_path)
+
+            # If local, just load
+            if self.data_source == 'local':
+
+                # Workaround for PIL bug
+                temp = Image.open(image_path)
+                image = temp.copy()
+                temp.close()
+
+            # If s3, then retrieve
+            elif self.data_source == 's3':
+                s3 = get_s3_resource()
+                obj = s3.Object('gist-data', image_path).get()
+                image = Image.open(io.BytesIO(obj['Body'].read()))
+
+            # Otherwise, error
+            else:
+                raise ValueError(f"Unknown source {self.data_source}")
 
         # These should all be here
         except:
             raise ValueError(f"Could not load image {image_path}")
         
-        # Return the product
-        return Product(label=product['name'], image=image, category=self.category)
+        # Store so we don't have to reload later
+        self.all_products[product_id]['image'] = image        
 
 
     # Load the images
-    def load_images(self) -> None:
+    def load_images(self, preload_all=False) -> None:
 
-        # Get the image path
-        images_dir = os.path.join(self.data_path,'images')
+        # If we're local, then create the folder
+        if self.data_source == 'local':
 
-        # Create the images dir if it doesn't exist
-        os.makedirs(images_dir, exist_ok=True)
+            # Get the image path
+            images_dir = os.path.join(AsosProductSet.get_data_path(),'images',self.category_id)
+
+            # Create the images dir if it doesn't exist
+            os.makedirs(images_dir, exist_ok=True)
+
+        # Otherwise, we'll be downloading from s3
+        elif self.data_source == 's3':
+
+            # The path to the images
+            images_dir = 'asos/images/'+self.category_id+'/'
+
+            # And get the resource
+            s3 = get_s3_resource()
+
+            # Get the bucket
+            bucket = s3.Bucket(get_s3_bucket_name())
+
+            # For speed, get all the files in the directory now
+            s3_files = [obj.key for obj in bucket.objects.filter(Prefix=images_dir)]
+
+            # And remove the directory name
+            s3_files = [file.split('/')[-1] for file in s3_files]
+
+        # Otherwise, error
+        else:
+            raise ValueError(f"Unknown source {self.data_source}")
 
         # Will be removing any products that don't have images
         new_products = []
@@ -140,31 +229,61 @@ class AsosProductSet(ProductSet):
         print("Loading images...")
         for idx, product in enumerate(self.all_products):
 
+            # Looking for this image name
+            image_name = f'image_{idx}.jpg'
+
             # Get the image url    
             image_url = product['imageUrl']
 
-            # Get the local path
-            ipath = os.path.join(images_dir, f'image_{idx}.jpg')
+            # If we're local, try to find or download the image
+            if self.data_source == 'local':
 
-            # Download the image if we don't have it
-            if not os.path.exists(ipath):
-                try:
-                    response = requests.get("https://" + image_url)
-                    img = Image.open(BytesIO(response.content))
-                    img.save(ipath)
-                    print(f"Saved image {idx}")
+                # Get the local path
+                ipath = os.path.join(images_dir, image_name)
 
-                except:
-                    print(f"WARNING: Failed to save image {idx}")
+                # Download the image if we don't have it
+                if not os.path.exists(ipath):
+                    try:
+                        response = requests.get("https://" + image_url)
+                        img = Image.open(BytesIO(response.content))
+                        img.save(ipath)
+                        print(f"Saved image {idx}")
 
-            # Link the image if we have it
-            if os.path.exists(ipath):
-                product['image_path'] = ipath
-                new_products.append(product)
+                    except:
+                        print(f"WARNING: Failed to save image {idx}")
+                
+                # Link the image if we have it
+                if os.path.exists(ipath):
+                    product['image_path'] = ipath
+                    new_products.append(product)
+
+
+            # Otherwise, check s3 to see if we're there
+            elif self.data_source == 's3':
+
+                # Check the s3 files
+                if image_name in s3_files:
+
+                    # Record that we have it
+                    product['image_path'] = images_dir+image_name
+                    new_products.append(product)
+
+                # If this fails, no option to download for now
+                else:
+                    print(f"WARNING: Failed to find image {idx}")
+            
+            # Otherwise error
+            else:
+                raise ValueError(f"Unknown source {self.data_source}")
+
+            # See if we're preloading all
+            if preload_all and 'image_path' in product:
+                print(f"Loading image {idx}")
+                self.load_image(idx)
 
         # Update the products
         self.all_products = new_products
-        print("Done loading images")
+        print(f"Loaded {self.get_num_products()} images") 
 
 
     #################################

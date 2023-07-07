@@ -23,6 +23,10 @@ class AmazonClothingProductSet(Dataset, ProductSet):
     """
     
     def __init__(self, image_dir: str, records: List[dict]):
+
+        # Call the parent constructor
+        super().__init__('local')
+
         self.image_dir = image_dir
         
         os.makedirs(self.image_dir, exist_ok=True)

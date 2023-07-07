@@ -2,11 +2,15 @@ import os
 import requests
 import base64
 import io
+import boto3
 
 
 # Get the filepath to the data directory
 def get_data_dir():
-    return os.path.join(get_gist_app_path(), 'data')
+    return os.path.join(get_gist_app_path(),'..','data')
+
+def get_gist_db_path():
+    return os.path.join(get_gist_app_path(),'gist.db')
 
 # Get the filepath to the gist_app directory
 def get_gist_app_path():
@@ -48,3 +52,18 @@ def image_to_base64(image):
     image.save(data, "JPEG")
     encoded_img_data = base64.b64encode(data.getvalue())
     return encoded_img_data.decode('utf-8')
+
+# Helper to get an s3 resource
+def get_s3_resource():
+
+    # Set a session with our credentials
+    session = boto3.Session(
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+    )
+
+    # Return the s3 resource
+    return session.resource('s3')
+
+def get_s3_bucket_name() -> str:
+    return 'gist-data'

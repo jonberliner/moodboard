@@ -6,17 +6,19 @@ import torch
 from typing import List
 import faiss
 from PIL import Image
+import io
 
-from utils.all_utils import get_data_dir
+from utils.all_utils import get_data_dir, get_s3_resource, get_s3_bucket_name
 from product import Product
 
 class ProductSet:
 
-    def __init__(self) -> None:
+    def __init__(self, data_source: str) -> None:
+        self.data_source = data_source
         pass
 
     # Create a virtual load images method
-    def load_images(self) -> None:
+    def load_images(self, preload_all=False) -> None:
         raise NotImplementedError
 
     # Create a virtual load products method
@@ -52,9 +54,35 @@ class ProductSet:
 
         # Load the embeddings, if we have them saved
         embeddings_path = self.get_embeddings_path()
-        if os.path.exists(embeddings_path):
-            self.embeddings = np.load(embeddings_path)
-            return
+        if self.data_source == 'local':
+
+            if os.path.exists(embeddings_path):
+                self.embeddings = np.load(embeddings_path)
+                return
+
+        # Check s3
+        elif self.data_source == 's3':
+
+            # Load if we can
+            s3 = get_s3_resource()
+            print("Loading embeddings from S3...")
+            try:
+
+                # Get the embeddings object
+                obj = s3.Object(get_s3_bucket_name(), embeddings_path).get()
+
+                # Convert to numpy
+                self.embeddings = np.load(io.BytesIO(obj['Body'].read()))
+                return
+
+            except:
+                # Error if we can't
+                raise ValueError("Embeddings not loaded in S3")
+
+        # Otherwise, error
+        else:
+            raise ValueError("Invalid data source")
+
 
         # If not, create them
         candidate_vembeds = self.create_embeddings(gister)
@@ -108,7 +136,7 @@ class ProductSetFactory:
 
     # Create a product set based on the name
     @staticmethod
-    def create_product_set(p_type: str) -> ProductSet:
+    def create_product_set(p_type: str, data_source: str) -> ProductSet:
 
         # If amazon, load the amazon products
         if p_type == "amazon":
@@ -135,7 +163,7 @@ class ProductSetFactory:
             from asos_product_set import AsosProductSet
 
             # Create the dataset
-            return AsosProductSet()
+            return AsosProductSet(data_source=data_source)
 
         # Otherwise, error
         else:
