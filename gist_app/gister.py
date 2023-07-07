@@ -66,16 +66,16 @@ class Gister:
         return vembeds
 
 
-    def load_product_set(self, p_type: str) -> None:
+    def load_product_set(self, p_type: str, data_source: str = 'local', preload_all: bool = False) -> None:
 
         # First, create the product set
-        self._product_set = ProductSetFactory.create_product_set(p_type)
+        self._product_set = ProductSetFactory.create_product_set(p_type, data_source)
 
         # Then load the products
         self._product_set.load_products()
 
         # Then the images
-        self._product_set.load_images()
+        self._product_set.load_images(preload_all)
 
         # And finally the embeddings
         self._product_set.load_embeddings(self)

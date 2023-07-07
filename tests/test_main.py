@@ -10,16 +10,16 @@ from gister import Gister
 def test_load_products():
 
     # The number of products we expect
-    product_sets = {'amazon':[24776,217],'asos':[19545,1]}
+    product_sets = {'amazon':[24776,217,'local'],'asos':[19545,1,'local'],'asos':[19545,1,'s3']}
 
     # Try for both amazon and asos
-    for product_set, counts in product_sets.items():
+    for product_set, args in product_sets.items():
 
-        # Divide the counts
-        num_products, num_categories = counts
+        # Divide the args
+        num_products, num_categories, data_source = args
 
         g = Gister()
-        g.load_product_set(product_set)
+        g.load_product_set(product_set, data_source)
 
         # Make sure we have the right number of products
         assert g.get_num_products() == num_products

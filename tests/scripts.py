@@ -12,19 +12,21 @@ from dotenv import load_dotenv
 # Run this if it's the main file
 if __name__ == "__main__":
 
-    # # Load the dotenv file
+    # # # Load the dotenv file
     # load_dotenv(os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), '.env'))
 
-    # Download the asos categories
-    # category_data = AsosProductSet.download_category_list()
+    # os.getenv('RAPIDAPI_KEY')
+
+    # # Download the asos categories
+    # # category_data = AsosProductSet.download_category_list()
     # product_data = AsosProductSet.download_product_details("204103436")
-    # products_data = AsosProductSet.download_products("8799") # Dresses
+    # # products_data = AsosProductSet.download_products("8799") # Dresses
 
 
     # Test loading the products
     g = Gister()
     # g.load_product_set('amazon')
-    g.load_product_set('asos')
+    g.load_product_set('asos', 'local', preload_all=False)
     print(f"Loaded {g.get_num_products()} products.")
 
     # Get the product categories
@@ -32,6 +34,7 @@ if __name__ == "__main__":
     print(f"Number of categories: {len(categories)}")
 
     # Test search
+    product = g.product_set.get_product(10)
     product = g.product_set.get_product(0)
     category = product.category
     results = g.search_image(product.image, category=category, num_results=5)
