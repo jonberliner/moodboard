@@ -23,11 +23,18 @@ if __name__ == "__main__":
     # # products_data = AsosProductSet.download_products("8799") # Dresses
 
 
+    # Save a test object
+    # with open("test.json", "w") as f:
+
     # Test loading the products
     g = Gister()
     # g.load_product_set('amazon')
-    g.load_product_set('asos', 'local', preload_all=False)
+    # g.load_product_set('asos', 'local', preload_all=False, use_saved=False)
+    g.load_product_set('asos', 's3', preload_all=False, use_saved=False)
     print(f"Loaded {g.get_num_products()} products.")
+
+    # We can save the product set if needed
+    # g.product_set.save()
 
     # Get the product categories
     categories = g.get_product_categories()

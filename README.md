@@ -41,6 +41,29 @@ moodboard recommendation repo
     + etsy and ebay suffer from trying to exactly match the photo, to the point where they're constantly recommending actual photos.  this one extra step can dramatically improve the quality of our matches, frees up the ability to search on "gist" rather than exact match.  It may also be more fun for the user, as we educate them on searching via gist/vibe rather than exact match.  finally, this is a true differentiator from the other methods.  if we show it's a better experience, this takes us out of direct competition with etsy/ebay current offerings, and gives routes perchance even to patents.
 
 ## To use the web app:
+
+For Local use:
 + Run >> python gist_app/app.py from the top-level directory
-+ Go to http://127.0.0.1:5000/search_image
++ Go to http://127.0.0.1/search_image
 + Input any image url from pinterest into the search bar
+
+For online use:
++ Go to gist.possibleworldsconsulting.com/search_image
+
+Loading data:
++ If using locally, then uncomment the internal_load_products line in app.py
++ For remote, use the load_products endpoint
++ This will default to using a prebuilt data set, that has all of the images
++ You can use the optional arguments to build the product set more organically if you need to
++ I think the best path is likely to prebuild for online use
++ To do this, load the products locally, preload the images, and then save the product set, and then upload it to the S3 bucket.
++ This is very slow, so you can also run load_products?use_prebuilt=false, to load faster, but the search will be slower.
+
+To deploy:
++ aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 136711265956.dkr.ecr.us-east-1.amazonaws.com
++ docker build -t moodboard . 
++ [Can run with docker run -p 80:80  --env-file .env moodboard]
++ docker tag moodboard:latest 136711265956.dkr.ecr.us-east-1.amazonaws.com/moodboard:latest
++ docker push 136711265956.dkr.ecr.us-east-1.amazonaws.com/moodboard:latest
++ Then, redeploy the service in the cluster
++ Check the /version endpoint to make sure you get the new version

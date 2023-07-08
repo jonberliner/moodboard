@@ -68,7 +68,16 @@ class Gister:
         return vembeds
 
 
-    def load_product_set(self, p_type: str, data_source: str = 'local', preload_all: bool = False) -> None:
+    def load_product_set(self, p_type: str, data_source: str = 'local', preload_all: bool = False, use_prebuilt: bool = False) -> None:
+
+        # If we're using a saved product set, load it and return
+        if use_prebuilt:
+            self._product_set = ProductSetFactory.load_product_set(p_type, data_source)
+            if self._product_set is not None:
+                return
+
+            # Warn if we didn't find it
+            print(f"WARNING: Could not find prebuilt product set for {p_type} in {data_source}")
 
         # First, create the product set
         self._product_set = ProductSetFactory.create_product_set(p_type, data_source)
@@ -82,7 +91,7 @@ class Gister:
         # And finally the embeddings
         self._product_set.load_embeddings(self)
 
-    
+
     # Search for a product
     def search_image(self, image: Image, category: str, num_results: int = 10) -> List[Product]:
 

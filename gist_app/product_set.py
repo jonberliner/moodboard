@@ -2,6 +2,7 @@
 
 import os
 import numpy as np
+import pickle
 import torch
 from typing import List
 import faiss
@@ -130,9 +131,68 @@ class ProductSet:
             products.append(self.get_product(category_idxs[idx]))
         return products
 
+    # Function to get the product set type
+    def get_type(self) -> str:
+        raise NotImplementedError
+
+    # Function to save the product set
+    def save(self) -> None:
+
+        # If we're local, then save the file
+        if self.data_source == 'local':
+            product_set_path = ProductSetFactory.get_local_product_set_path(self.get_type())
+            print(f"Saving {self.get_type()} product set to {product_set_path}")
+
+            # Save the pickled product set
+            with open(product_set_path, 'wb') as f:
+                pickle.dump(self, f)
+        
+        # Otherwise, save to s3
+        elif self.data_source == 's3':
+            raise NotImplementedError
+        
+        # Otherwise, error
+        else:
+            raise ValueError("Invalid data source")
+
 
 # ProductSet factory class
 class ProductSetFactory:
+
+    # Helper to get the local product set path
+    @staticmethod
+    def get_local_product_set_path(p_type: str) -> str:
+        return os.path.join(get_data_dir(), f"{p_type}_product_set.pkl")
+
+    # Static method to load a saved product set
+    @staticmethod
+    def load_product_set(p_type: str, data_source: str) -> ProductSet:
+
+        # If we're local, then look for the file path
+        if data_source == 'local':
+            product_set_path = ProductSetFactory.get_local_product_set_path(p_type)
+
+            # If the file exists, then load it
+            if os.path.exists(product_set_path):
+                print(f"Loading {p_type} product set from {product_set_path}")
+                with open(product_set_path, 'rb') as f:
+                    return pickle.load(f)
+        
+        # Otherwise, check s3
+        elif data_source == 's3':
+
+            s3 = get_s3_resource()
+            try:
+                print(f"Loading {p_type} product set from S3...")
+                obj = s3.Object(get_s3_bucket_name(), f"{p_type}/{p_type}_product_set.pkl").get()
+                print(f"Unpacking {p_type} product set...")
+                return pickle.load(io.BytesIO(obj['Body'].read()))
+            except Exception as e:
+                pass
+        
+        # Otherwise, error
+        else:
+            raise ValueError("Invalid data source")
 
     # Create a product set based on the name
     @staticmethod
