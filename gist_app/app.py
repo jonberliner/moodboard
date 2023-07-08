@@ -381,7 +381,7 @@ def search_image():
     result_images = [product.image for product in product_results]
 
     # And the urls
-    result_urls = [product.url for product in product_results]
+    urls = [product.url for product in product_results]
 
     # And the image urls
     result_urls = [product.image_url for product in product_results]
@@ -392,7 +392,7 @@ def search_image():
 
     return render_template("search_image.html", search_image_url=search_image_url, 
                            images=result_data, search_image=search_data, num_results=num_results,
-                           categories=categories, category_selected=category, urls=result_urls, enumerate=enumerate, 
+                           categories=categories, category_selected=category, urls=urls, enumerate=enumerate, 
                            search_image_urls=search_image_urls, result_urls=result_urls)
 
 # Create a route to receive ebay closure notifications
