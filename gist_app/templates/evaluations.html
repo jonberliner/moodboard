@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Evaluations</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <h1>Evaluations</h1>
+  <table>
+    <tr>
+      <th>Time</th>
+      <th>IP</th>
+      <th>Eval</th>
+      <th>Search URL</th>
+      <th>Match URL</th>
+    </tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row[5] }}</td>
+      <td>{{ row[4] }}</td>
+      <td>{{ row[3] }}</td>
+      <td>{{ row[1] }}</td>
+      <td>{{ row[2] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

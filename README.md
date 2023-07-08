@@ -70,3 +70,8 @@ To deploy:
 
 Some endpoints:
 + search_urls: Will show all of the urls we use for search images. Can add or delete. Remember to check for additions before redeploying (and copying to the code for now).
++ Evaluations: Shows all the evaluations
++ save_db: Saves the database to s3
++ downalod_db: Downloads the most recent db from S3 to use
++ search_history: Shows all of the search history
++ search_urls: Shows all of the urls we're using for search images

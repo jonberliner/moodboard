@@ -153,7 +153,8 @@ class AsosProductSet(ProductSet):
             self.load_image(product_id)
 
         # Return the product
-        return Product(label=product['name'], image=product['image'], category=self.category, url='https://www.asos.com/'+product['url'])
+        return Product(label=product['name'], image=product['image'], category=self.category, 
+                       url='https://www.asos.com/'+product['url'], image_url=product['imageUrl'])
 
     # Helper function to load an image
     def load_image(self, product_id):

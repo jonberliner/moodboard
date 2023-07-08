@@ -53,6 +53,7 @@ body {
             height: 150px;
             margin: 5px;
         }
+
       </style>
       <script>
         window.addEventListener('scroll', function() {
@@ -86,6 +87,35 @@ body {
       }
     </script>
     
+   <script>
+      function saveImage(save_url) {
+
+        // Create an XML HTTP Request
+        var xhr = new XMLHttpRequest();
+
+        // Get the url of the search image
+        var searchImage = document.getElementById("search-url");
+        var searchImageURL = searchImage.value;
+
+        // Create a post request with the image url
+        xhr.open('POST', save_url, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.send('save-url=' + searchImageURL);
+      }
+    </script>
+    
+    <script>
+      function saveEval(save_url, eval, search_url, match_url) {
+
+        // Create an XML HTTP Request
+        var xhr = new XMLHttpRequest();
+
+        // Save the evaluation
+        xhr.open('POST', save_url, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.send('eval=' + eval+"&search-url=" + search_url + "&match-url=" + match_url);
+      }
+    </script>
   </head>
   <body>
 
@@ -96,6 +126,7 @@ body {
       <div id="left-image">
         {% if search_image %}
         <button onclick="changeImage({{ search_image_urls }});">Change Image</button>
+        <button onclick="saveImage('{{ url_for('save_url') }}');">Save Image</button>
         <h2>Search Image:</h2>
           <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
         {% endif %}
@@ -104,6 +135,7 @@ body {
       <div id="left-image2">
         {% if search_image %}
         <button onclick="changeImage({{ search_image_urls }});">Change Image</button>
+        <button onclick="saveImage('{{ url_for('save_url') }}');">Save Image</button>
         <h2>Search Image:</h2>
           <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
         {% endif %}
@@ -140,9 +172,9 @@ body {
         {% if images %}
           {% for idx, image in enumerate(images) %}
             <a href="{{ urls[idx] }}" target="_blank">
-              <img src="data:image/jpeg;base64,{{ image }}">
-            
-              
+              <img src="data:image/jpeg;base64,{{ image }}"></a>
+            <button onclick="saveEval('{{ url_for('save_eval') }}', 'Y', '{{ search_image_url }}', '{{ result_urls[idx] }}');">Y</button>
+            <button onclick="saveEval('{{ url_for('save_eval') }}', 'N', '{{ search_image_url }}', '{{ result_urls[idx] }}');">N</button>
           {% endfor %}
         {% endif %}
       </div>
