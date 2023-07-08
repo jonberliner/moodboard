@@ -135,6 +135,8 @@ class AsosProductSet(ProductSet):
         # And return
         return candidate_vembeds
 
+    def get_type(self) -> str:
+        return "asos"
 
     # Get a product
     def get_product(self, product_id: int) -> Product:

@@ -51,6 +51,9 @@ class AmazonClothingProductSet(Dataset, ProductSet):
         
         return records_path
 
+    def get_type(self) -> str:
+        return "amazon"
+
     @staticmethod
     def read_records(fpath):
         records = []

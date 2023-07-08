@@ -15,7 +15,7 @@ app = Flask(__name__)
 # Endpoint to return the version
 @app.route("/version", methods=['GET'])
 def version():
-    return "0.0.4"
+    return "0.0.5"
 
 # Endpoint to load the products
 @app.route("/load_products", methods=['GET'])
@@ -34,8 +34,19 @@ def load_products():
     if data_source is None:
         data_source = "s3"
 
+    # See if we're using the prebuilt version
+    use_prebuilt = request.args.get("use_prebuilt")
+
+    # Convert to boolean
+    if use_prebuilt is not None:
+        use_prebuilt = use_prebuilt.lower() == "true"
+
+    # Default to true
+    else:
+        use_prebuilt = True
+
     # Load the products
-    internal_load_products(product_type, data_source, False)
+    internal_load_products(product_type, data_source, preload_all=False, use_prebuilt=use_prebuilt)
 
     # Return the number of products
     return f"Loaded {app.gister.get_num_products()} products"
@@ -106,13 +117,13 @@ def search_history():
     return render_template("search_history.html", rows=rows)  
 
 
-def internal_load_products(product_type, data_source, preload_all):
+def internal_load_products(product_type, data_source, preload_all, use_prebuilt=False):
 
     # Set up the gister
     with app.app_context():
 
         g = Gister()
-        g.load_product_set(product_type, data_source, preload_all)
+        g.load_product_set(product_type, data_source, preload_all, use_prebuilt)
 
         # And store for later
         app.gister = g
@@ -231,13 +242,13 @@ def ebay_notify():
 @app.route("/")
 # Note: This is used as the health check endpoint for the load balancer
 def hello():
-    return "Gist!"
+    return render_template("index.html")
 
 
 if __name__ == "__main__":
 
     # # # For debugging, load the products
-    # internal_load_products('asos', 'local', False)
+    # internal_load_products('asos', 'local', preload_all=False)
 
     # Run on port 80
     app.run(host='0.0.0.0', port=80)
