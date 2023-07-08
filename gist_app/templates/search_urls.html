@@ -1,0 +1,57 @@
+<!-- Render all of the urls -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search URLs</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+
+    <!-- An input form for adding a new URL -->
+    <form action="{{ url_for('search_urls') }}" method="post">
+        <input type="text" name="add-url" placeholder="URL">
+        <input type="submit" value="Add URL">
+    </form>
+
+    <form action="{{ url_for('search_urls') }}" method="post">
+        <input type="text" name="delete-id" placeholder="ID">
+        <input type="submit" value="Delete URL (by ID)">
+    </form>
+    
+  <h1>URLs</h1>
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>URL</th>
+    </tr>
+    {% for url in search_image_urls %}
+    <tr>
+      <td>{{ url[0] }}</td>
+      <td>{{ url[1] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <!-- Display as a copiable list -->
+    <h1>URLs</h1>
+    [
+      {% for url in search_image_urls %}
+      '{{ url[1] }}',
+      {% endfor %}
+    ]
+</body>
+</html>

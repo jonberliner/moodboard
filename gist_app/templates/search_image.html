@@ -69,22 +69,42 @@ body {
             }
         });
     </script>
+    <script>
+      function changeImage(image_urls) {
+
+        // Get a random number
+        var randIdx = Math.floor(Math.random() * image_urls.length);
+        var newImageURL = image_urls[randIdx];
+
+        // Replace the image
+        var image = document.getElementById("search-image");
+        image.src = newImageURL;
+
+        // And the search
+        var searchBox = document.getElementById("search-url");
+        searchBox.value = newImageURL;
+      }
+    </script>
+    
   </head>
   <body>
 
+    <!-- Note: Need to add buttons in both places to show up and then work, because the invisible one is on top.-->
 
     <div id="image-container"> 
       <!-- If the search_image variable is not empty, display the image-->
       <div id="left-image">
         {% if search_image %}
-          <h2>Search Image:</h2>
+        <button onclick="changeImage({{ search_image_urls }});">Change Image</button>
+        <h2>Search Image:</h2>
           <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
         {% endif %}
       </div>
 
       <div id="left-image2">
         {% if search_image %}
-          <h2>Search Image:</h2>
+        <button onclick="changeImage({{ search_image_urls }});">Change Image</button>
+        <h2>Search Image:</h2>
           <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
         {% endif %}
       </div>
@@ -127,5 +147,6 @@ body {
         {% endif %}
       </div>
     </div>
-</body>
+
+  </body>
 </html>

@@ -71,6 +71,27 @@ def create_gist_db():
                     search_url text, ip text, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     
     
+    # Create a table for all of the search image urls
+    c.execute('''CREATE TABLE search_image_urls
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    search_image_url text)''')
+
+    # Seed the search image urls
+    search_images = ['https://i.pinimg.com/474x/3f/e7/00/3fe700a9b46de92a7e4b32843ecc2923.jpg',
+            'https://i.pinimg.com/736x/ac/13/3f/ac133f87630018fa69fbcddfb61bf2f5.jpg',
+            'https://i.pinimg.com/564x/03/62/3c/03623c181de7c18a84932635e0f4279a.jpg',
+            'https://i.pinimg.com/474x/fa/73/7b/fa737b8f99636afc99e1de33c3fa70f7.jpg',
+            'https://i.pinimg.com/736x/b4/b9/3e/b4b93eeb8a390220c3abdb0c8914f13b.jpg',
+            'https://i.pinimg.com/474x/b4/7f/00/b47f00b3cb1aab0efa16ac7f55251757.jpg',
+            'https://i.pinimg.com/564x/e7/c7/10/e7c7108847b90e1adc749ce078e06b66.jpg',
+            'https://i.pinimg.com/474x/c2/7a/23/c27a23b3e6ba757ccfc5ce899faec376.jpg',
+            'https://i.pinimg.com/474x/c9/be/10/c9be10f8ac165a88d1251495ba6cf00d.jpg',
+            'https://i.pinimg.com/474x/dc/ad/89/dcad89f8debe0a1e94999959206fb7ab.jpg']
+    
+    # Save the search image urls
+    for search_image_url in search_images:
+        c.execute("INSERT INTO search_image_urls (search_image_url) VALUES (?)", (search_image_url,))
+
     # Commit and close
     conn.commit()
     conn.close()
@@ -142,6 +163,73 @@ def preload_images():
     # Return the number of products
     return f"Loaded {app.gister.get_num_products()} images"
 
+def get_image_urls():
+
+    # Connect to the database
+    conn = sqlite3.connect(get_gist_db_path())
+
+    # Create a cursor
+    c = conn.cursor()
+
+    # Get the search history
+    c.execute("SELECT * FROM search_image_urls")
+
+    # Get the results
+    rows = c.fetchall()
+
+    # Close the connection
+    conn.close()
+
+    # Return the results
+    return rows
+               
+# Endpoint to return the search urls
+@app.route("/search_urls", methods=['GET','POST'])
+def search_urls():
+
+    # See if we're trying to add a url
+    add_url = request.form.get("add-url")
+
+    # If we are, add it
+    if add_url:
+            
+        # Connect to the database
+        conn = sqlite3.connect(get_gist_db_path())
+
+        # Create a cursor
+        c = conn.cursor()
+
+        # Insert the search url and ip address
+        c.execute("INSERT INTO search_image_urls (search_image_url) VALUES (?)", (add_url,))
+
+        # Commit and close
+        conn.commit()
+        conn.close()
+
+    # See if we're deleting one
+    delete_id = request.form.get("delete-id")
+
+    # If we are, delete it
+    if delete_id:
+                
+        # Connect to the database
+        conn = sqlite3.connect(get_gist_db_path())
+
+        # Create a cursor
+        c = conn.cursor()
+
+        # Insert the search url and ip address
+        c.execute("DELETE FROM search_image_urls WHERE id=?", (delete_id,))
+
+        # Commit and close
+        conn.commit()
+        conn.close()    
+
+    # Get them
+    search_image_urls = get_image_urls()
+
+    # Return the results
+    return render_template("search_urls.html", search_image_urls=search_image_urls)
 
 # Add a search image endpoint
 @app.route("/search_image", methods=['GET', 'POST'])
@@ -162,10 +250,13 @@ def search_image():
     # Sort them alphabetically
     categories = sorted(categories)
 
+    # Get only the second element of each tuple
+    search_image_urls = [url[1] for url in get_image_urls()]
+
     # If we don't have an image url, return the search page
     if search_image_url is None:
         return render_template("search_image.html", search_image_url='', num_results=20, categories=categories,
-                               category_selected="WomensDresses")
+                               category_selected="WomensDresses", search_image_urls=search_image_urls)
 
     # Save the query, but don't break if it fails
     try:
@@ -210,7 +301,8 @@ def search_image():
 
     return render_template("search_image.html", search_image_url=search_image_url, 
                            images=result_data, search_image=search_data, num_results=num_results,
-                           categories=categories, category_selected=category, urls=result_urls, enumerate=enumerate)
+                           categories=categories, category_selected=category, urls=result_urls, enumerate=enumerate, 
+                           search_image_urls=search_image_urls)
 
 # Create a route to receive ebay closure notifications
 @app.route("/ebay_notify", methods=['GET', 'POST'])

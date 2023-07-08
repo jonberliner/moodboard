@@ -67,3 +67,6 @@ To deploy:
 + docker push 136711265956.dkr.ecr.us-east-1.amazonaws.com/moodboard:latest
 + Then, redeploy the service in the cluster
 + Check the /version endpoint to make sure you get the new version
+
+Some endpoints:
++ search_urls: Will show all of the urls we use for search images. Can add or delete. Remember to check for additions before redeploying (and copying to the code for now).
