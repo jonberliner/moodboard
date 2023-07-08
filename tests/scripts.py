@@ -6,11 +6,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 from gister import Gister
 from asos_product_set import AsosProductSet
-
-from dotenv import load_dotenv
+from utils.all_utils import save_gist_db_to_s3, download_gist_db_from_s3
 
 # Run this if it's the main file
 if __name__ == "__main__":
+
+    # Test saving and loading the gist db    
+    # save_gist_db_to_s3()
+    download_gist_db_from_s3()
+    print("Saved the gist db to S3")
 
     # # # Load the dotenv file
     # load_dotenv(os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), '.env'))

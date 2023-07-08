@@ -5,11 +5,12 @@ from PIL import Image
 class Product:
 
     # We'll have an image, label, and category
-    def __init__(self, image: Image, label: str, category: str, url: str = None) -> None:
+    def __init__(self, image: Image, label: str, category: str, url: str = None, image_url: str = None) -> None:
         self._image = image
         self._label = label
         self._category = category
         self._url = url
+        self._image_url = image_url
 
     @property
     def url(self) -> str:
@@ -18,6 +19,14 @@ class Product:
     @url.setter
     def url(self, url: str) -> None:
         self._url = url
+
+    @property
+    def image_url(self) -> str:
+        return self._image_url
+    
+    @image_url.setter
+    def image_url(self, image_url: str) -> None:
+        self._image_url = image_url
 
     @property
     def image(self) -> Image:

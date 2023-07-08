@@ -7,7 +7,7 @@ import os
 import datetime
 
 from gister import Gister
-from utils.all_utils import image_to_base64, get_gist_db_path
+from utils.all_utils import image_to_base64, get_gist_db_path, save_gist_db_to_s3, download_gist_db_from_s3
 
 app = Flask(__name__)
 
@@ -76,6 +76,11 @@ def create_gist_db():
                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
                     search_image_url text)''')
 
+    # Create a table for the evaluations, with fields for the search image url, match_url, evaluation, and ip
+    c.execute('''CREATE TABLE evaluations
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    search_url text, match_url text, evaluation text, ip text, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
     # Seed the search image urls
     search_images = ['https://i.pinimg.com/474x/3f/e7/00/3fe700a9b46de92a7e4b32843ecc2923.jpg',
             'https://i.pinimg.com/736x/ac/13/3f/ac133f87630018fa69fbcddfb61bf2f5.jpg',
@@ -96,6 +101,18 @@ def create_gist_db():
     conn.commit()
     conn.close()
 
+
+# An endpoing to save the database to s3
+@app.route("/save_db", methods=['GET'])
+def save_db():
+    save_gist_db_to_s3()
+    return "Saved database to s3"
+
+# An endpoint to download the database
+@app.route("/download_db", methods=['GET'])
+def download_db():
+    download_gist_db_from_s3()
+    return "Downloaded database from s3"
 
 def save_request(search_image_url, search_ip):
 
@@ -192,19 +209,7 @@ def search_urls():
 
     # If we are, add it
     if add_url:
-            
-        # Connect to the database
-        conn = sqlite3.connect(get_gist_db_path())
-
-        # Create a cursor
-        c = conn.cursor()
-
-        # Insert the search url and ip address
-        c.execute("INSERT INTO search_image_urls (search_image_url) VALUES (?)", (add_url,))
-
-        # Commit and close
-        conn.commit()
-        conn.close()
+        internal_save_url(add_url)
 
     # See if we're deleting one
     delete_id = request.form.get("delete-id")
@@ -231,6 +236,89 @@ def search_urls():
     # Return the results
     return render_template("search_urls.html", search_image_urls=search_image_urls)
 
+
+def internal_save_url(url):
+        
+    # Connect to the database
+    conn = sqlite3.connect(get_gist_db_path())
+
+    # Create a cursor
+    c = conn.cursor()
+
+    # Insert the search url and ip address
+    c.execute("INSERT INTO search_image_urls (search_image_url) VALUES (?)", (url,))
+
+    # Commit and close
+    conn.commit()
+    conn.close()
+
+
+# Create an endpoint to save a url
+@app.route("/save_url", methods=['POST'])
+def save_url():
+    
+    # Get the url
+    save_url = search_image_url = request.form.get("save-url")
+
+    # Save the url
+    internal_save_url(save_url)
+    
+    # Return the url
+    return f"Saved {save_url}"
+
+# An endpoint that shows all the evaluations
+@app.route("/evaluations", methods=['GET'])
+def evaluations():
+    
+    # Connect to the database
+    conn = sqlite3.connect(get_gist_db_path())
+
+    # Create a cursor
+    c = conn.cursor()
+
+    # Get the search history
+    c.execute("SELECT * FROM evaluations")
+
+    # Get the results
+    rows = c.fetchall()
+
+    # Close the connection
+    conn.close()
+
+    # Return the results
+    return render_template("evaluations.html", rows=rows)
+
+# Create an endpoint to save an evaluation
+@app.route("/save_eval", methods=['POST'])
+def save_eval():
+
+    # Get the arguments
+    eval = request.form.get("eval")
+    search_url = request.form.get("search-url")
+    match_url = request.form.get("match-url")
+
+    # Get the IP
+    ip = get_request_ip()
+
+    # Connect to the database
+    conn = sqlite3.connect(get_gist_db_path())
+
+    # Create a cursor
+    c = conn.cursor()
+
+    # Insert 
+    c.execute("INSERT INTO evaluations (evaluation, search_url, match_url, ip) VALUES (?, ?, ?, ?)", (eval, search_url, match_url, ip))
+
+    # Commit and close
+    conn.commit()
+    conn.close()
+
+    # Return the url
+    return f"Saved {eval} for {search_url} and {match_url}"
+
+def get_request_ip():
+    return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+
 # Add a search image endpoint
 @app.route("/search_image", methods=['GET', 'POST'])
 def search_image():
@@ -256,11 +344,11 @@ def search_image():
     # If we don't have an image url, return the search page
     if search_image_url is None:
         return render_template("search_image.html", search_image_url='', num_results=20, categories=categories,
-                               category_selected="WomensDresses", search_image_urls=search_image_urls)
+                               category_selected="WomensDresses", search_image_urls=search_image_urls, result_urls=[])
 
     # Save the query, but don't break if it fails
     try:
-        save_request(search_image_url, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
+        save_request(search_image_url, get_request_ip())
 
     except Exception as e:
         print(f"Error saving request: {e}")
@@ -295,6 +383,9 @@ def search_image():
     # And the urls
     result_urls = [product.url for product in product_results]
 
+    # And the image urls
+    result_urls = [product.image_url for product in product_results]
+
     # Convert to base64
     result_data = [image_to_base64(image) for image in result_images]
     search_data = image_to_base64(s_image)
@@ -302,7 +393,7 @@ def search_image():
     return render_template("search_image.html", search_image_url=search_image_url, 
                            images=result_data, search_image=search_data, num_results=num_results,
                            categories=categories, category_selected=category, urls=result_urls, enumerate=enumerate, 
-                           search_image_urls=search_image_urls)
+                           search_image_urls=search_image_urls, result_urls=result_urls)
 
 # Create a route to receive ebay closure notifications
 @app.route("/ebay_notify", methods=['GET', 'POST'])
