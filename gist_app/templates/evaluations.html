@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JFY5WNGEJW"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-JFY5WNGEJW');
+    </script>
+
   <title>Evaluations</title>
   <style>
     table {
@@ -25,15 +36,23 @@
       <th>IP</th>
       <th>Eval</th>
       <th>Search URL</th>
+      <th>Search URL B</th>
+      <th>I Weight</th>
       <th>Match URL</th>
+      <th>Text</th>
+      <th>T Weight URL</th>
     </tr>
     {% for row in rows %}
     <tr>
+      <td>{{ row[7] }}</td>
+      <td>{{ row[6] }}</td>
       <td>{{ row[5] }}</td>
-      <td>{{ row[4] }}</td>
-      <td>{{ row[3] }}</td>
       <td>{{ row[1] }}</td>
       <td>{{ row[2] }}</td>
+      <td>{{ row[3] }}</td>
+      <td>{{ row[4] }}</td>
+      <td>{{ row[8] }}</td>
+      <td>{{ row[9] }}</td>
     </tr>
     {% endfor %}
   </table>

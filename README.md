@@ -75,3 +75,4 @@ Some endpoints:
 + downalod_db: Downloads the most recent db from S3 to use
 + search_history: Shows all of the search history
 + search_urls: Shows all of the urls we're using for search images
++ search_image_2: Allows blending of two images

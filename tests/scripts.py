@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
     # Test saving and loading the gist db    
     # save_gist_db_to_s3()
-    download_gist_db_from_s3()
-    print("Saved the gist db to S3")
+    # download_gist_db_from_s3()
+    # print("Saved the gist db to S3")
 
     # # # Load the dotenv file
     # load_dotenv(os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), '.env'))
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     # Test loading the products
     g = Gister()
     # g.load_product_set('amazon')
-    # g.load_product_set('asos', 'local', preload_all=False, use_saved=False)
-    g.load_product_set('asos', 's3', preload_all=False, use_saved=False)
+    g.load_product_set('asos', 'local', preload_all=False, use_prebuilt=False)
+    # g.load_product_set('asos', 's3', preload_all=False, use_prebuilt=False)
     print(f"Loaded {g.get_num_products()} products.")
 
     # We can save the product set if needed
@@ -45,10 +45,17 @@ if __name__ == "__main__":
     print(f"Number of categories: {len(categories)}")
 
     # Test search
-    product = g.product_set.get_product(10)
+    product_b = g.product_set.get_product(10)
     product = g.product_set.get_product(0)
     category = product.category
-    results = g.search_image(product.image, category=category, num_results=5)
+    results = g.search_images([product.image], category=category, num_results=5)
+    results_2 = g.search_images([product.image, product_b.image], category=category, num_results=5, weight=0)
+    results_3 = g.search_images([product.image, product_b.image], category=category, num_results=5, weight=1)
+
+    search_text = "red dress"
+    text_weight = 2
+    results_4 = g.search_images([product.image, product_b.image], category=category, num_results=5, weight=1,
+                                search_text=search_text, text_weight=text_weight)
 
     # Now by url
     image_url = "https://i.pinimg.com/564x/2a/da/f7/2adaf77f93508acd3e2d3448768be26b.jpg"

@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JFY5WNGEJW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-JFY5WNGEJW');
+  </script>
   <title>Flask Table Example</title>
   <style>
     table {
@@ -20,16 +29,25 @@
 <body>
   <h1>Table Example</h1>
   <table>
+
     <tr>
       <th>Time</th>
       <th>IP</th>
       <th>URL</th>
+      <th>URL B</th>
+      <th>Img W</th>
+      <th>Text</th>
+      <th>Text W</th>
     </tr>
     {% for row in rows %}
     <tr>
-      <td>{{ row[3] }}</td>
-      <td>{{ row[2] }}</td>
+      <td>{{ row[7] }}</td>
+      <td>{{ row[6] }}</td>
       <td>{{ row[1] }}</td>
+      <td>{{ row[2] }}</td>
+      <td>{{ row[4] }}</td>
+      <td>{{ row[3] }}</td>
+      <td>{{ row[5] }}</td>
     </tr>
     {% endfor %}
   </table>
