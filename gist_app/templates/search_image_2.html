@@ -5,14 +5,14 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JFY5WNGEJW"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
 
-      gtag('config', 'G-JFY5WNGEJW');
+    gtag('config', 'G-JFY5WNGEJW');
     </script>
 
-    <title>Search Image</title>
+    <title>Search Image 2</title>
     <style>
 body {
             display: flex;
@@ -50,6 +50,26 @@ body {
             opacity: 0;
         }
 
+        #search-image {
+            max-width: 30%;
+            /* max-height: 100%; */
+        }
+
+        #search-image-2 {
+            max-width: 30%;
+            /* max-height: 100%; */
+        }
+
+        #search-image-b {
+            max-width: 30%;
+            /* max-height: 100%; */
+        }
+
+        #search-image-2-b {
+            max-width: 30%;
+            /* max-height: 100%; */
+        }
+
         #right-images {
             display: flex;
             flex-wrap: wrap;
@@ -82,30 +102,41 @@ body {
         });
     </script>
     <script>
-      function changeImage(image_urls) {
+      function changeImage(image_urls, idx) {
 
         // Get a random number
         var randIdx = Math.floor(Math.random() * image_urls.length);
         var newImageURL = image_urls[randIdx];
 
-        // Replace the image
-        var image = document.getElementById("search-image");
-        image.src = newImageURL;
+        // Base values
+        var image_el = 'search-image';
+        var search_el = 'search-url';
+        if (idx == 2) {
+            image_el += '-b';
+            search_el += '-b';
+        }
 
-        // And the search
-        var searchBox = document.getElementById("search-url");
+        // Replace the image and search box
+        var image = document.getElementById(image_el);
+        var searchBox = document.getElementById(search_el);
+
+        image.src = newImageURL;
         searchBox.value = newImageURL;
       }
     </script>
     
    <script>
-      function saveImage(save_url) {
+      function saveImage(save_url, idx) {
 
         // Create an XML HTTP Request
         var xhr = new XMLHttpRequest();
 
         // Get the url of the search image
-        var searchImage = document.getElementById("search-url");
+        var search_el = "search-url";
+        if (idx == 2) {
+            search_el += '-b';
+        }
+        var searchImage = document.getElementById(search_el);
         var searchImageURL = searchImage.value;
 
         // Create a post request with the image url
@@ -116,7 +147,7 @@ body {
     </script>
     
     <script>
-      function saveEval(save_url, eval, search_url, match_url, search_text, text_weight) {
+      function saveEval(save_url, eval, search_url, search_url_b, weight, match_url) {
 
         // Create an XML HTTP Request
         var xhr = new XMLHttpRequest();
@@ -124,7 +155,7 @@ body {
         // Save the evaluation
         xhr.open('POST', save_url, true);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.send('eval=' + eval+"&search-url=" + search_url + "&match-url=" + match_url+"&search-text=" + search_text + "&text-weight=" + text_weight);
+        xhr.send('eval=' + eval+"&search-url=" + search_url + "&search-url-b=" + search_url_b + "&weight=" + weight + "&match-url=" + match_url);
       }
     </script>
   </head>
@@ -133,30 +164,38 @@ body {
     <!-- Note: Need to add buttons in both places to show up and then work, because the invisible one is on top.-->
 
     <div id="image-container"> 
-      <!-- If the search_image variable is not empty, display the image-->
-      <div id="left-image">
-        {% if search_image %}
-        <button onclick="changeImage({{ search_image_urls }});">Change Image</button>
-        <button onclick="saveImage('{{ url_for('save_url') }}');">Save Image</button>
-        <h2>Search Image:</h2>
-          <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
-        {% endif %}
-      </div>
 
-      <div id="left-image2">
-        {% if search_image %}
-        <button onclick="changeImage({{ search_image_urls }});">Change Image</button>
-        <button onclick="saveImage('{{ url_for('save_url') }}');">Save Image</button>
-        <h2>Search Image:</h2>
-          <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
-        {% endif %}
-      </div>
-
-      <div id="right-images">
+        <!-- If the search_image variable is not empty, display the image-->
+        <div id="left-image">
+            {% if search_image %}
+            <button onclick="changeImage({{ search_image_urls }},1);">Change Image</button>
+            <button onclick="changeImage({{ search_image_urls }},2);">Change Image 2</button>
+            <button onclick="saveImage('{{ url_for('save_url') }}',1);">Save Image</button>
+            <button onclick="saveImage('{{ url_for('save_url') }}',2);">Save Image 2</button>
+            <h2>Search Image:</h2>
+              <img id="search-image" src="data:image/jpeg;base64,{{ search_image }}">
+              <img id="search-image-b" src="data:image/jpeg;base64,{{ search_image_b }}">
+              {% endif %}
+          </div>
+    
+          <div id="left-image2">
+            {% if search_image %}
+            <button onclick="changeImage({{ search_image_urls }},1);">Change Image</button>
+            <button onclick="changeImage({{ search_image_urls }},2);">Change Image 2</button>
+            <button onclick="saveImage('{{ url_for('save_url') }}',1);">Save Image</button>
+            <button onclick="saveImage('{{ url_for('save_url') }}',2);">Save Image 2</button>
+            <h2>Search Image:</h2>
+                <img id="search-image-2" src="data:image/jpeg;base64,{{ search_image }}">
+                <img id="search-image-2-b" src="data:image/jpeg;base64,{{ search_image_b }}">
+                {% endif %}
+          </div>
+    
+    <div id="right-images">
         <div>
-          <form method="POST" action="{{ url_for('search_image') }}">
+          <form method="POST" action="{{ url_for('search_image_2') }}">
             <label for="url">Enter URL:</label>
             <input type="text" id="search-url" name="search-url" placeholder="https://example.com" value="{{ search_image_url }}" required>
+            <input type="text" id="search-url-b" name="search-url-b" placeholder="https://example.com" value="{{ search_image_url_b }}" required>
     
             <!-- Get the number of results to return as a freeform integer entry -->
               <label for="num-results">Number of Results:</label>
@@ -165,7 +204,7 @@ body {
               <!-- Provide a category dropdown list -->
               <label for="category">Category:</label>
               <select id="image-category" name="image-category">
-                  
+    
                   <!-- Fill it with items from the input category_list -->
                   {% for category in categories %}
                       <option value="{{ category }}" {% if category == category_selected %}selected{% endif %}>{{ category }}</option>
@@ -173,13 +212,11 @@ body {
                       <!-- <option value="{{ category }}">{{ category }}</option> -->
                   {% endfor %}
               </select>
-
-              <label for="search-text">Text:</label>
-              <input type="text" id="search-text" name="search-text" value="{{ search_text }}">
-  
-              <label for="text-weight">Weight:</label>
-              <input type="text" id="text-weight" name="text-weight" value="{{ text_weight }}">
-  
+    
+                <!-- The weight between the images -->
+                <label for="weight">Weight:</label>
+                <input type="text" id="weight" name="weight" value="{{ weight }}" required>
+                      
               <button type="submit">Search</button>
           </form>
         </div>
@@ -190,8 +227,8 @@ body {
           {% for idx, image in enumerate(images) %}
             <a href="{{ urls[idx] }}" target="_blank">
               <img src="data:image/jpeg;base64,{{ image }}"></a>
-            <button onclick="saveEval('{{ url_for('save_eval') }}', 'Y', '{{ search_image_url }}', '{{ result_urls[idx] }}', '{{ search_text }}', '{{ text_weight }}');">Y</button>
-            <button onclick="saveEval('{{ url_for('save_eval') }}', 'N', '{{ search_image_url }}', '{{ result_urls[idx] }}', '{{ search_text }}', '{{ text_weight }}');">N</button>
+            <button onclick="saveEval('{{ url_for('save_eval') }}', 'Y', '{{ search_image_url }}', '{{ search_image_url_b }}', '{{ weight }}', '{{ result_urls[idx] }}');">Y</button>
+            <button onclick="saveEval('{{ url_for('save_eval') }}', 'N', '{{ search_image_url }}', '{{ search_image_url_b }}', '{{ weight }}', '{{ result_urls[idx] }}');">N</button>
           {% endfor %}
         {% endif %}
       </div>
