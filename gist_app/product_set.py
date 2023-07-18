@@ -107,7 +107,7 @@ class ProductSet:
 
     # Search for an image
     def search_images(self, images: List[Image], category: str, num_results: int, weight, 
-                      search_text, text_weight, gister) -> List[Product]:
+                      search_text, text_weight, eval_adj, gister) -> List[Product]:
 
         # Get the embeddings
         with torch.no_grad():
@@ -138,6 +138,12 @@ class ProductSet:
             with torch.no_grad():
                 text_vembeds = gister.texts_to_embeddings([search_text])
             query_vembeds += text_vembeds[0] * text_weight
+
+        # And any adjustment
+        if eval_adj is not None:
+
+            # TODO: Make this weight configurable
+            query_vembeds += .25*eval_adj
 
         # Normalize and reform
         query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)

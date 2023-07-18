@@ -102,7 +102,7 @@ class Gister:
 
     # Search for a product
     def search_images(self, images: List[Image], category: str, num_results: int = 10, weight=None,
-                      search_text=None, text_weight=None) -> List[Product]:
+                      search_text=None, text_weight=None, eval_adj=None) -> List[Product]:
 
         # Error if we have no products
         if self.product_set is None:
@@ -110,7 +110,7 @@ class Gister:
 
         # And search the product set
         return self.product_set.search_images(images, category, num_results, weight, 
-                                              search_text, text_weight, self)
+                                              search_text, text_weight, eval_adj, self)
 
     
     # Search for a product by image url
