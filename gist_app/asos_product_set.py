@@ -25,6 +25,10 @@ class AsosProductSet(ProductSet):
         self.category = 'WomensDresses'
         self.category_id = '8799'
 
+        # These are bad indices we don't want to use
+        # TODO: Figure out how to handle generally
+        self.bad_idxs = [15485, 15484]
+
         # Will store everything here
         self.all_products = None
         self.images = None
@@ -39,7 +43,13 @@ class AsosProductSet(ProductSet):
     def get_category_indices(self, category: str) -> np.array:
 
         # Note that we only have one category, so return all indices as a np.array
-        return np.arange(self.get_num_products())
+        idxs = np.arange(self.get_num_products())
+
+        # Remove the bad images
+        idxs = np.delete(idxs, self.bad_idxs)
+
+        # And return
+        return idxs
 
     # Return the embeddings path
     def get_embeddings_path(self) -> str:
@@ -90,6 +100,12 @@ class AsosProductSet(ProductSet):
 
         # And log
         print(f"Loaded {self.get_num_products()} products")
+
+        # TODO: Generalize this and save with products or embeddings
+        # Create a map from imageURL it index
+        self.image_url_to_idx = {}
+        for idx, product in enumerate(self.all_products):
+            self.image_url_to_idx[product['imageUrl']] = idx
 
     # Return the number of products
     def get_num_products(self) -> int:

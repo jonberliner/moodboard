@@ -5,6 +5,7 @@ import hashlib
 import sqlite3
 import os
 import datetime
+import numpy as np
 
 from gister import Gister
 from utils.all_utils import image_to_base64, get_gist_db_path, save_gist_db_to_s3, download_gist_db_from_s3
@@ -175,6 +176,21 @@ def internal_load_products(product_type, data_source, preload_all, use_prebuilt=
         create_gist_db()        
 
 
+# Create an endpoint to clear the evaluations
+@app.route("/clear_evaluations", methods=['GET'])
+def clear_evaluations():
+
+    # Clear all evaluations from the database
+    conn = sqlite3.connect(get_gist_db_path())
+    c = conn.cursor()
+    c.execute("DELETE FROM evaluations")
+    conn.commit()
+    conn.close()
+
+    # Return a message
+    return "Cleared evaluations"
+
+
 # Endpoint to preload all of the images
 @app.route("/preload_images", methods=['GET'])
 def preload_images():
@@ -333,6 +349,46 @@ def get_request_ip():
     # return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
     return request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
 
+# Get an embedding vector that reflects the evaluations
+def get_eval_adj_embedding(search_image_url):
+
+    # Retrieve all evaluations for this image from the database
+    conn = sqlite3.connect(get_gist_db_path())
+    c = conn.cursor()
+    c.execute("SELECT * FROM evaluations WHERE search_url=?", (search_image_url,))
+    rows = c.fetchall()
+    conn.close()
+
+    # If none, then return None
+    if len(rows) == 0:
+        return None
+
+    # Create an np zero vector of the right size
+    embedding = np.zeros(app.gister.product_set.embeddings.shape[1])
+
+    # Add the evaluations to the vector
+    for row in rows:
+
+        # Get the product index
+        # TODO: Generalize this
+        product_index = app.gister.product_set.image_url_to_idx[row[4]]
+
+        # Get the vector
+        vect = app.gister.product_set.embeddings[product_index]
+
+        # Add if positive, subtract if negative
+        if row[5] == 'Y':
+            embedding += vect
+        elif row[5] == 'N':
+            embedding -= vect
+        
+        # Otherwise error
+        else:
+            raise Exception("Invalid evaluation")
+
+    # Return the embedding
+    return embedding
+
 # Add a search image endpoint
 @app.route("/search_image", methods=['GET', 'POST'])
 def search_image():
@@ -400,9 +456,14 @@ def search_image():
     # Get the image data
     s_image = Image.open(requests.get(search_image_url, stream=True).raw)
     
+    # And any evaluation adjustment
+    # TODO: Put in more robustly (this is for a demo)
+    eval_adj = get_eval_adj_embedding(search_image_url)
+
     # Search
     product_results = app.gister.search_images([s_image], category=category, num_results=num_results,
-                                               search_text=search_text, text_weight=text_weight)
+                                               search_text=search_text, text_weight=text_weight, 
+                                               eval_adj=eval_adj)
     
     # Return the images from the products
     result_images = [product.image for product in product_results]
