@@ -106,11 +106,47 @@ class ProductSet:
 
 
     # Search for an image
-    def search_image(self, image: Image, category: str, num_results: int, gister) -> List[Product]:
+    def search_images(self, images: List[Image], category: str, num_results: int, weight, 
+                      search_text, text_weight, eval_adj, gister) -> List[Product]:
 
         # Get the embeddings
         with torch.no_grad():
-            query_vembeds = gister.images_to_embeddings([image])
+            query_vembeds = gister.images_to_embeddings(images)
+
+        # If only one image, then take the vector directly
+        if len(images) == 1:
+            pass
+          
+        # Otherwise, take the weighted average
+        elif len(images) == 2:
+
+            # Need a weight if we have two images
+            if weight is None:
+                raise ValueError("Must provide a weight for two images")
+
+            # Take the weighted average
+            query_vembeds = (weight * query_vembeds[0]) + ((1. - weight) * query_vembeds[1]).unsqueeze(0)
+
+        # Otherwise, error
+        else:
+
+            # TODO: Generalize this to more than 2 images
+            raise ValueError("Invalid number of images")        
+
+        # And add in the text if we have it
+        if search_text is not None:
+            with torch.no_grad():
+                text_vembeds = gister.texts_to_embeddings([search_text])
+            query_vembeds += text_vembeds[0] * text_weight
+
+        # And any adjustment
+        if eval_adj is not None:
+
+            # TODO: Make this weight configurable
+            query_vembeds += .25*eval_adj
+
+        # Normalize and reform
+        query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
         query_vembeds = query_vembeds.detach().numpy()
 
         # Get the category embeddings

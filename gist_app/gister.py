@@ -48,6 +48,14 @@ class Gister:
             return 0
         return self._product_set.get_num_product_embeddings()
 
+    # Convert text to embeddings
+    def texts_to_embeddings(self, text) -> torch.tensor:
+        tinput = self.processor(text=text, padding=True, return_tensors="pt")
+        tembeds = self.model.text_model(**tinput)[1]
+        tembeds = self.model.text_projection(tembeds)
+        tembeds = tembeds / tembeds.norm(p=2, dim=-1, keepdim=True) 
+        return tembeds
+
     # Create image embeddings
     #   Below is standard CLIP usage to score text snippets against a photo
     def images_to_embeddings(self, images: list[Image]) -> torch.tensor:
@@ -93,14 +101,16 @@ class Gister:
 
 
     # Search for a product
-    def search_image(self, image: Image, category: str, num_results: int = 10) -> List[Product]:
+    def search_images(self, images: List[Image], category: str, num_results: int = 10, weight=None,
+                      search_text=None, text_weight=None, eval_adj=None) -> List[Product]:
 
         # Error if we have no products
         if self.product_set is None:
             raise ValueError("No product set loaded")
 
         # And search the product set
-        return self.product_set.search_image(image, category, num_results, self)
+        return self.product_set.search_images(images, category, num_results, weight, 
+                                              search_text, text_weight, eval_adj, self)
 
     
     # Search for a product by image url

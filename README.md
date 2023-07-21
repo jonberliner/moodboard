@@ -60,6 +60,7 @@ Loading data:
 + This is very slow, so you can also run load_products?use_prebuilt=false, to load faster, but the search will be slower.
 
 To deploy:
++ Note: For now, should make sure to save the database before upgrading (use /save_db)
 + aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 136711265956.dkr.ecr.us-east-1.amazonaws.com
 + docker build -t moodboard . 
 + [Can run with docker run -p 80:80  --env-file .env moodboard]
@@ -67,6 +68,9 @@ To deploy:
 + docker push 136711265956.dkr.ecr.us-east-1.amazonaws.com/moodboard:latest
 + Then, redeploy the service in the cluster
 + Check the /version endpoint to make sure you get the new version
++ Load the products: /load_products
++ Then, preload the images: /preload_images
++ And reset the db to the saved one: /download_db
 
 Some endpoints:
 + search_urls: Will show all of the urls we use for search images. Can add or delete. Remember to check for additions before redeploying (and copying to the code for now).
@@ -75,3 +79,4 @@ Some endpoints:
 + downalod_db: Downloads the most recent db from S3 to use
 + search_history: Shows all of the search history
 + search_urls: Shows all of the urls we're using for search images
++ search_image_2: Allows blending of two images
