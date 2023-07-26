@@ -366,6 +366,7 @@ def get_eval_adj_embedding(search_image_url):
     # Create an np zero vector of the right size
     embedding = np.zeros(app.gister.product_set.embeddings.shape[1])
 
+    embeddings = []
     # Add the evaluations to the vector
     for row in rows:
 
@@ -378,16 +379,20 @@ def get_eval_adj_embedding(search_image_url):
 
         # Add if positive, subtract if negative
         if row[5] == 'Y':
+            embeddings.append(('Y', product_index, vect))
             embedding += vect
         elif row[5] == 'N':
             embedding -= vect
+            embeddings.append(('N', product_index, vect))
+
         
         # Otherwise error
         else:
             raise Exception("Invalid evaluation")
 
-    # Return the embedding
-    return embedding
+    # # Return the embedding
+    # return embedding
+    return embeddings
 
 # Add a search image endpoint
 @app.route("/search_image", methods=['GET', 'POST'])
@@ -619,7 +624,7 @@ def hello():
 if __name__ == "__main__":
 
     # # # For debugging, load the products
-    # internal_load_products('asos', 'local', preload_all=False)
+    internal_load_products('asos', 'local', preload_all=False)
 
     # Run on port 80
     app.run(host='0.0.0.0', port=80)

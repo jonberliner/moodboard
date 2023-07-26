@@ -1,5 +1,7 @@
 # A base class for all of our different product sets
 
+from __future__ import annotations
+
 import os
 import numpy as np
 import pickle
@@ -139,19 +141,32 @@ class ProductSet:
                 text_vembeds = gister.texts_to_embeddings([search_text])
             query_vembeds += text_vembeds[0] * text_weight
 
+        # Get the category embeddings
+        category_idxs = self.get_category_indices(category)
+        to_remove = []
+
         # And any adjustment
         if eval_adj is not None:
 
-            # TODO: Make this weight configurable
-            query_vembeds += .25*eval_adj
+            for yn, idx, vect in eval_adj:
+                if yn == 'Y':
+                    query_vembeds += vect
+                elif yn == 'N':
+                    query_vembeds -= vect
+                    to_remove.append(idx)
+                else:
+                    raise ValueError('yn must be Y or N')
+
+        # remove nos
+        category_idxs = np.setdiff1d(category_idxs, to_remove)
+        category_vembeds = self.embeddings[category_idxs]
+
+            # # TODO: Make this weight configurable
+            # query_vembeds += .25*eval_adj
 
         # Normalize and reform
         query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
         query_vembeds = query_vembeds.detach().numpy()
-
-        # Get the category embeddings
-        category_idxs = self.get_category_indices(category)
-        category_vembeds = self.embeddings[category_idxs]
 
         # Create the index
         dim = query_vembeds.shape[1]
