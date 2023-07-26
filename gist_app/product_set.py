@@ -143,42 +143,110 @@ class ProductSet:
 
         # Get the category embeddings
         category_idxs = self.get_category_indices(category)
+
+        # we are going to remove items similar to things we said no to
+        # Create the index
+        category_vembeds = self.embeddings[category_idxs]
+        dim = query_vembeds.shape[1]
+        index = faiss.IndexFlatIP(dim)
+        index.add(category_vembeds)
+
         to_remove = []
+        to_keep = []
+
+        seen = set()
 
         # And any adjustment
         if eval_adj is not None:
 
             for yn, idx, vect in eval_adj:
+                if idx in seen:
+                    continue
+
+                seen.add(idx)
                 if yn == 'Y':
                     query_vembeds += vect
+                    to_keep.append(idx)
+
                 elif yn == 'N':
-                    query_vembeds -= vect
+                    query_vembeds -= vect * 0.1
+
+                    vect = np.reshape(vect,(1, vect.size))
+                    _, _idxs = index.search(vect, 3)
+                    _idxs = list(_idxs[0])
+
                     to_remove.append(idx)
+                    to_remove += _idxs
                 else:
                     raise ValueError('yn must be Y or N')
 
+        print(f'removing {len(to_remove)} products')
+
+        for keep in to_keep:
+            if keep in to_remove:
+                to_remove.remove(keep)
         # remove nos
         category_idxs = np.setdiff1d(category_idxs, to_remove)
-        category_vembeds = self.embeddings[category_idxs]
 
-            # # TODO: Make this weight configurable
-            # query_vembeds += .25*eval_adj
+
+
+        # Create the index
+        category_vembeds = self.embeddings[category_idxs]
+        dim = query_vembeds.shape[1]
+        index = faiss.IndexFlatIP(dim)
+        index.add(category_vembeds)
 
         # Normalize and reform
         query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
         query_vembeds = query_vembeds.detach().numpy()
 
-        # Create the index
-        dim = query_vembeds.shape[1]
-        index = faiss.IndexFlatIP(dim)
-        index.add(category_vembeds)
 
         # Search the index
-        _, idxs = index.search(query_vembeds, num_results)
+        idxs = []
+        _, _idxs = index.search(query_vembeds, num_results)
+        _idxs = list(_idxs[0])
+
+        # if eval_adj is not None:
+        #     for yn, idx, vect in eval_adj:
+        #         if yn == 'Y':
+        #             vect = np.reshape(vect,(1, vect.size))
+        #             vect = torch.tensor(vect)
+        #             vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
+
+        #             vect = vect + query_vembeds
+        #             vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
+        #             vect = vect.detach().numpy()
+
+        #             _, _idxs = index.search(vect, 3)
+        #             _idxs = list(_idxs[0])
+
+        #             idxs += _idxs
+
+        # query_vembeds = query_vembeds.detach().numpy()
+        # _, _idxs = index.search(query_vembeds, max(num_results - len(idxs), 1))
+        # _idxs = list(_idxs[0])
+        idxs += _idxs
+
+        # remove dups
+        res = []
+        [res.append(x) for x in idxs if x not in res]
+        idxs = res
+ 
+
+        # if eval_adj is not None:
+        #     for yn, idx, vect in eval_adj:
+        #         if yn == 'Y':
+        #             vect = np.reshape(vect,(1, vect.size))
+        #             _, _idxs = index.search(vect, 10)
+        #             _idxs = list(_idxs[0])
+        #             _idxs = [i for i in _idxs if i not in idxs]
+        #             idxs += _idxs
+
+        print(f'{len(idxs)} total products')
 
         # Get the products
         products = []
-        for idx in idxs[0]:
+        for idx in idxs:
             products.append(self.get_product(category_idxs[idx]))
         return products
 

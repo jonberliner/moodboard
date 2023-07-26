@@ -460,6 +460,8 @@ def search_image():
 
     # Get the image data
     s_image = Image.open(requests.get(search_image_url, stream=True).raw)
+    size = 512, 512
+    s_image.thumbnail(size, Image.Resampling.LANCZOS)
     
     # And any evaluation adjustment
     # TODO: Put in more robustly (this is for a demo)
