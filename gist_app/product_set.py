@@ -166,11 +166,11 @@ class ProductSet:
 
                 # seen.add(idx)
                 if yn == 'Y':
-                    query_vembeds += vect * 0.5
+                    query_vembeds += vect * 1.
                     to_keep.append(cat_idx)
 
                 elif yn == 'N':
-                    query_vembeds -= vect * 0.1
+                    query_vembeds -= vect * 0.2
 
                     vect = np.reshape(vect,(1, vect.size))
                     _, _idxs = index.search(vect, 3)
@@ -204,99 +204,102 @@ class ProductSet:
         query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
         query_vembeds = query_vembeds.detach().numpy()
 
-        front = []
-        if eval_adj is not None:
-            to_remove = []
-            for yn, cat_idx, vect in eval_adj:
-                if yn == 'Y':
-                    front.append(self.get_product(cat_idx))
-                    to_remove.append(cat_idx)
-            category_idxs = np.setdiff1d(category_idxs, to_remove)
+        # #### FOR RECOMMENDING OFF INDIVIDUAL LIKES
+        # front = []
+        # if eval_adj is not None:
+        #     to_remove = []
+        #     for yn, cat_idx, vect in eval_adj:
+        #         if yn == 'Y':
+        #             front.append(self.get_product(cat_idx))
+        #             to_remove.append(cat_idx)
+        #     category_idxs = np.setdiff1d(category_idxs, to_remove)
 
-        # Search the index
-        if eval_adj is not None:
-            # for getting products and removing from search
-            _cat_idxs = []
-            # where we'll store products per query
-            products = []
+        # # Search the index
+        # if eval_adj is not None:
+        #     # for getting products and removing from search
+        #     _cat_idxs = []
+        #     # where we'll store products per query
+        #     products = []
 
-            # figure out how many per liked item
-            n_eval = 0
-            for yn, _, _ in eval_adj:
-                if yn == 'Y':
-                    n_eval += 1
-            n_per = num_results // n_eval
+        #     # figure out how many per liked item
+        #     n_eval = 0
+        #     for yn, _, _ in eval_adj:
+        #         if yn == 'Y':
+        #             n_eval += 1
+        #     n_per = num_results // n_eval
 
-            # search for each item
-            for yn, cat_idx, vect in eval_adj:
-                if yn == 'Y':
-                    # remove previously found
-                    category_idxs = np.setdiff1d(category_idxs, _cat_idxs)
-                    print(len(category_idxs))
-                    # build index
-                    category_vembeds = self.embeddings[category_idxs]
-                    dim = query_vembeds.shape[1]
-                    index = faiss.IndexFlatIP(dim)
-                    index.add(category_vembeds)
+        #     # search for each item
+        #     for yn, cat_idx, vect in eval_adj:
+        #         if yn == 'Y':
+        #             # remove previously found
+        #             category_idxs = np.setdiff1d(category_idxs, _cat_idxs)
+        #             print(len(category_idxs))
+        #             # build index
+        #             category_vembeds = self.embeddings[category_idxs]
+        #             dim = query_vembeds.shape[1]
+        #             index = faiss.IndexFlatIP(dim)
+        #             index.add(category_vembeds)
 
-                    # build search vector
-                    vect = np.reshape(vect,(1, vect.size))
-                    vect = torch.tensor(vect)
-                    vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
+        #             # build search vector
+        #             vect = np.reshape(vect,(1, vect.size))
+        #             vect = torch.tensor(vect)
+        #             vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
 
-                    vect = vect + query_vembeds * 0.5
-                    vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
-                    vect = vect.detach().numpy()
+        #             vect = vect + query_vembeds * 0.5
+        #             vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
+        #             vect = vect.detach().numpy()
 
-                    # search
-                    _, _idxs = index.search(vect, n_per)
-                    _idxs = list(_idxs[0])
+        #             # search
+        #             _, _idxs = index.search(vect, n_per)
+        #             _idxs = list(_idxs[0])
 
-                    # add products
-                    _cat_idxs = []
-                    for idx in _idxs:
-                        _cat_idxs.append(category_idxs[idx])
-                    _products = []
-                    for cat_idx in _cat_idxs:
-                        _products.append(self.get_product(cat_idx))
-                    products.append(_products)
+        #             # add products
+        #             _cat_idxs = []
+        #             for idx in _idxs:
+        #                 _cat_idxs.append(category_idxs[idx])
+        #             _products = []
+        #             for cat_idx in _cat_idxs:
+        #                 _products.append(self.get_product(cat_idx))
+        #             products.append(_products)
 
-            # interleave products
-            out = []
-            for iprod in range(n_per):
-                prods = []
-                for iquery in range(len(products)):
-                    prods.append(products[iquery][iprod])
-                random.shuffle(prods)
-                out += prods
-            products = front + out
-        else:
-            _, _idxs = index.search(query_vembeds, num_results)
-            _idxs = list(_idxs[0])
-            # idxs += _idxs
+        #     # interleave products
+        #     out = []
+        #     for iprod in range(n_per):
+        #         prods = []
+        #         for iquery in range(len(products)):
+        #             prods.append(products[iquery][iprod])
+        #         random.shuffle(prods)
+        #         out += prods
+        #     products = front + out
+        # else:
+        #     _, _idxs = index.search(query_vembeds, num_results)
+        #     _idxs = list(_idxs[0])
+        #     # idxs += _idxs
 
-            products = []
-            for idx in _idxs:
-                products.append(self.get_product(category_idxs[idx]))
+        #     products = []
+        #     for idx in _idxs:
+        #         products.append(self.get_product(category_idxs[idx]))
 
 
-        # # query_vembeds = query_vembeds.detach().numpy()
-        # # _, _idxs = index.search(query_vembeds, max(num_results - len(idxs), 1))
-        # # _idxs = list(_idxs[0])
-        # idxs += _idxs
+        ##### FOR TRADITIONAL SEARCH
+        idxs = []
+        _, _idxs = index.search(query_vembeds, max(num_results - len(idxs), 1))
+        _idxs = list(_idxs[0])
+        idxs += _idxs
 
-        # # remove dups
-        # res = []
-        # [res.append(x) for x in idxs if x not in res]
-        # idxs = res
+        # remove dups
+        res = []
+        [res.append(x) for x in idxs if x not in res]
+        idxs = res
+
+        # Get the products
+        products = []
+        for idx in idxs:
+            products.append(self.get_product(category_idxs[idx]))
  
 
         print(f'{len(products)} total products')
 
-        # # Get the products
-        # products = []
-        # for idx in idxs:
-        #     products.append(self.get_product(category_idxs[idx]))
         return products
 
     # Function to get the product set type
