@@ -160,17 +160,28 @@ class ProductSet:
         to_keep = []
         # And any adjustment
         if eval_adj is not None:
+            query_vembeds = torch.tensor(query_vembeds)
             for yn, cat_idx, vect in eval_adj:
+                vect = torch.tensor(vect)
                 # if idx in seen:
                 #     continue
 
+                residual = vect - query_vembeds
+                vect = vect.detach().numpy()
+
                 # seen.add(idx)
                 if yn == 'Y':
-                    query_vembeds += vect * 1.
+                    query_vembeds += residual
+                    query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
+
+                    # query_vembeds += vect * 1.
                     to_keep.append(cat_idx)
 
                 elif yn == 'N':
-                    query_vembeds -= vect * 0.2
+                    query_vembeds -= residual
+                    query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
+
+                    # query_vembeds -= vect * 0.2
 
                     vect = np.reshape(vect,(1, vect.size))
                     _, _idxs = index.search(vect, 3)
