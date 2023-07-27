@@ -10,6 +10,7 @@ from typing import List
 import faiss
 from PIL import Image
 import io
+import random
 
 from utils.all_utils import get_data_dir, get_s3_resource, get_s3_bucket_name
 from product import Product
@@ -143,6 +144,7 @@ class ProductSet:
 
         # Get the category embeddings
         category_idxs = self.get_category_indices(category)
+        print(len(category_idxs))
 
         # we are going to remove items similar to things we said no to
         # Create the index
@@ -151,22 +153,21 @@ class ProductSet:
         index = faiss.IndexFlatIP(dim)
         index.add(category_vembeds)
 
-        to_remove = []
-        to_keep = []
+
 
         seen = set()
-
+        to_remove = []
+        to_keep = []
         # And any adjustment
         if eval_adj is not None:
+            for yn, cat_idx, vect in eval_adj:
+                # if idx in seen:
+                #     continue
 
-            for yn, idx, vect in eval_adj:
-                if idx in seen:
-                    continue
-
-                seen.add(idx)
+                # seen.add(idx)
                 if yn == 'Y':
-                    query_vembeds += vect
-                    to_keep.append(idx)
+                    query_vembeds += vect * 0.5
+                    to_keep.append(cat_idx)
 
                 elif yn == 'N':
                     query_vembeds -= vect * 0.1
@@ -175,8 +176,12 @@ class ProductSet:
                     _, _idxs = index.search(vect, 3)
                     _idxs = list(_idxs[0])
 
-                    to_remove.append(idx)
-                    to_remove += _idxs
+                    _cat_idxs = []
+                    for idx in _idxs:
+                        _cat_idxs.append(category_idxs[idx])
+
+                    to_remove.append(cat_idx)
+                    to_remove += _cat_idxs
                 else:
                     raise ValueError('yn must be Y or N')
 
@@ -187,8 +192,7 @@ class ProductSet:
                 to_remove.remove(keep)
         # remove nos
         category_idxs = np.setdiff1d(category_idxs, to_remove)
-
-
+        print(len(category_idxs))
 
         # Create the index
         category_vembeds = self.embeddings[category_idxs]
@@ -200,54 +204,99 @@ class ProductSet:
         query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
         query_vembeds = query_vembeds.detach().numpy()
 
+        front = []
+        if eval_adj is not None:
+            to_remove = []
+            for yn, cat_idx, vect in eval_adj:
+                if yn == 'Y':
+                    front.append(self.get_product(cat_idx))
+                    to_remove.append(cat_idx)
+            category_idxs = np.setdiff1d(category_idxs, to_remove)
 
         # Search the index
-        idxs = []
-        _, _idxs = index.search(query_vembeds, num_results)
-        _idxs = list(_idxs[0])
+        if eval_adj is not None:
+            # for getting products and removing from search
+            _cat_idxs = []
+            # where we'll store products per query
+            products = []
 
-        # if eval_adj is not None:
-        #     for yn, idx, vect in eval_adj:
-        #         if yn == 'Y':
-        #             vect = np.reshape(vect,(1, vect.size))
-        #             vect = torch.tensor(vect)
-        #             vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
+            # figure out how many per liked item
+            n_eval = 0
+            for yn, _, _ in eval_adj:
+                if yn == 'Y':
+                    n_eval += 1
+            n_per = num_results // n_eval
 
-        #             vect = vect + query_vembeds
-        #             vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
-        #             vect = vect.detach().numpy()
+            # search for each item
+            for yn, cat_idx, vect in eval_adj:
+                if yn == 'Y':
+                    # remove previously found
+                    category_idxs = np.setdiff1d(category_idxs, _cat_idxs)
+                    print(len(category_idxs))
+                    # build index
+                    category_vembeds = self.embeddings[category_idxs]
+                    dim = query_vembeds.shape[1]
+                    index = faiss.IndexFlatIP(dim)
+                    index.add(category_vembeds)
 
-        #             _, _idxs = index.search(vect, 3)
-        #             _idxs = list(_idxs[0])
+                    # build search vector
+                    vect = np.reshape(vect,(1, vect.size))
+                    vect = torch.tensor(vect)
+                    vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
 
-        #             idxs += _idxs
+                    vect = vect + query_vembeds * 0.5
+                    vect = vect / vect.norm(p=2, dim=-1, keepdim=True)
+                    vect = vect.detach().numpy()
 
-        # query_vembeds = query_vembeds.detach().numpy()
-        # _, _idxs = index.search(query_vembeds, max(num_results - len(idxs), 1))
-        # _idxs = list(_idxs[0])
-        idxs += _idxs
+                    # search
+                    _, _idxs = index.search(vect, n_per)
+                    _idxs = list(_idxs[0])
 
-        # remove dups
-        res = []
-        [res.append(x) for x in idxs if x not in res]
-        idxs = res
+                    # add products
+                    _cat_idxs = []
+                    for idx in _idxs:
+                        _cat_idxs.append(category_idxs[idx])
+                    _products = []
+                    for cat_idx in _cat_idxs:
+                        _products.append(self.get_product(cat_idx))
+                    products.append(_products)
+
+            # interleave products
+            out = []
+            for iprod in range(n_per):
+                prods = []
+                for iquery in range(len(products)):
+                    prods.append(products[iquery][iprod])
+                random.shuffle(prods)
+                out += prods
+            products = front + out
+        else:
+            _, _idxs = index.search(query_vembeds, num_results)
+            _idxs = list(_idxs[0])
+            # idxs += _idxs
+
+            products = []
+            for idx in _idxs:
+                products.append(self.get_product(category_idxs[idx]))
+
+
+        # # query_vembeds = query_vembeds.detach().numpy()
+        # # _, _idxs = index.search(query_vembeds, max(num_results - len(idxs), 1))
+        # # _idxs = list(_idxs[0])
+        # idxs += _idxs
+
+        # # remove dups
+        # res = []
+        # [res.append(x) for x in idxs if x not in res]
+        # idxs = res
  
 
-        # if eval_adj is not None:
-        #     for yn, idx, vect in eval_adj:
-        #         if yn == 'Y':
-        #             vect = np.reshape(vect,(1, vect.size))
-        #             _, _idxs = index.search(vect, 10)
-        #             _idxs = list(_idxs[0])
-        #             _idxs = [i for i in _idxs if i not in idxs]
-        #             idxs += _idxs
+        print(f'{len(products)} total products')
 
-        print(f'{len(idxs)} total products')
-
-        # Get the products
-        products = []
-        for idx in idxs:
-            products.append(self.get_product(category_idxs[idx]))
+        # # Get the products
+        # products = []
+        # for idx in idxs:
+        #     products.append(self.get_product(category_idxs[idx]))
         return products
 
     # Function to get the product set type

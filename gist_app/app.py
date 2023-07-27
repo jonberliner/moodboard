@@ -462,6 +462,7 @@ def search_image():
     s_image = Image.open(requests.get(search_image_url, stream=True).raw)
     size = 512, 512
     s_image.thumbnail(size, Image.Resampling.LANCZOS)
+    s_image = s_image.convert("RGB")
     
     # And any evaluation adjustment
     # TODO: Put in more robustly (this is for a demo)
