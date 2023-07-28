@@ -161,28 +161,29 @@ class ProductSet:
         # And any adjustment
         if eval_adj is not None:
             query_vembeds = torch.tensor(query_vembeds)
+            to_add = None
             for yn, cat_idx, vect in eval_adj:
                 vect = torch.tensor(vect)
                 # if idx in seen:
                 #     continue
 
                 residual = vect - query_vembeds
-                vect = vect.detach().numpy()
 
                 # seen.add(idx)
                 if yn == 'Y':
-                    query_vembeds += residual
-                    query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
+                    query_vembeds += residual * 0.5
+                    # query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
 
                     # query_vembeds += vect * 1.
                     to_keep.append(cat_idx)
 
                 elif yn == 'N':
-                    query_vembeds -= residual
-                    query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
+                    query_vembeds -= residual * 0.2
+                    # query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
 
                     # query_vembeds -= vect * 0.2
 
+                    vect = vect.detach().numpy()
                     vect = np.reshape(vect,(1, vect.size))
                     _, _idxs = index.search(vect, 3)
                     _idxs = list(_idxs[0])
@@ -195,6 +196,11 @@ class ProductSet:
                     to_remove += _cat_idxs
                 else:
                     raise ValueError('yn must be Y or N')
+
+        # Normalize and reform
+        query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
+        query_vembeds = query_vembeds.detach().numpy()
+
 
         print(f'removing {len(to_remove)} products')
 
@@ -210,10 +216,6 @@ class ProductSet:
         dim = query_vembeds.shape[1]
         index = faiss.IndexFlatIP(dim)
         index.add(category_vembeds)
-
-        # Normalize and reform
-        query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
-        query_vembeds = query_vembeds.detach().numpy()
 
         # #### FOR RECOMMENDING OFF INDIVIDUAL LIKES
         # front = []
