@@ -11,6 +11,7 @@ moodboard recommendation repo
 + [ebay feed sdk)](https://github.com/eBay/FeedSDK-Python)
 
 ### models
++ [segmentation for clothing](https://github.com/levindabhi/cloth-segmentation)
 + [huggingface's clip](https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPModel.forward.returns)
 + [blogpost on fine-tuning clip](https://huggingface.co/blog/fine-tune-clip-rsicd)
 + [loss function for clip](https://github.com/huggingface/transformers/blob/v4.29.1/src/transformers/models/clip/modeling_clip.py#L1151)
