@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from typing import List, Union
 from fashion_clip.fashion_clip import FashionCLIP
 import numpy as np
 from tqdm import tqdm
+from PIL import Image
 
 _PROMPT_TEMPLATES = [
     'a bad photo of a {}.',
@@ -123,13 +126,18 @@ class GradREC:
         query_vectors = []
         if isinstance(start_query, str):
             query_vectors.append(self._encode_queries([start_query][0]))
-        else:
+        elif isinstance(start_query, Image.Image):
             query_vectors.append(self.fclip.encode_images([start_query]))[0]
+        else:
+            query_vectors.append(start_query)
 
         if isinstance(end_query, str):
             query_vectors.append(self._encode_queries([end_query])[0])
-        else:
+        elif isinstance(end_query, Image.Image):
             query_vectors.append(self.fclip.encode_images([end_query]))[0]
+        else:
+            query_vectors.append(end_query)
+
         # retrieve nearest image vectors
         query_im_vectors = self._product_retrieval(query_vectors, N=max(start_N, end_N))
         return self._direction_vector_from_vectors(query_im_vectors[0][:start_N], query_im_vectors[1][:end_N])
@@ -201,8 +209,8 @@ class GradREC:
 
     def traverse_space(self,
                        start_point: np.ndarray,
+                       end_point: np.ndarray,
                        search_space: np.ndarray,
-                       v_dir: np.ndarray,
                        step_size: float,
                        steps: int,
                        reg_space: np.ndarray,
@@ -225,6 +233,10 @@ class GradREC:
         nearest_neighbors = self._k_neighbors(start_point, search_space, k=reg_k)
         traversal_path = [nearest_neighbors[:k]]
         for _ in tqdm(range(steps)):
+            v_dir = self.direction_vector(
+                start_query=start_point,
+                end_query=end_point,
+            )
             # take a single step
             start_point = self.traversal_fn(
                 start_point=start_point,
