@@ -1,9 +1,12 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from PIL import Image
 import requests
 import hashlib
 import sqlite3
+import ast
+import json
 import os
+import torch
 import datetime
 import numpy as np
 
@@ -12,11 +15,6 @@ from utils.all_utils import image_to_base64, get_gist_db_path, save_gist_db_to_s
 
 app = Flask(__name__)
 
-
-# Endpoint to return the version
-@app.route("/version", methods=['GET'])
-def version():
-    return "0.0.7"
 
 # Endpoint to return the ip
 @app.route("/ip", methods=['GET'])
@@ -87,6 +85,11 @@ def create_gist_db():
                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
                     search_url text, search_url_b text, weight text, match_url text, evaluation text, ip text, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, search_text text, text_weight text)''')
 
+    # Create a table to store a phone number, seed url, a list of urls, a timestamp, and a vector
+    c.execute('''CREATE TABLE text_chats
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    phone_number text, search_url text, urls text, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, vector ARRAY)''')
+
     # Seed the search image urls
     search_images = ['https://i.pinimg.com/474x/3f/e7/00/3fe700a9b46de92a7e4b32843ecc2923.jpg',
             'https://i.pinimg.com/736x/ac/13/3f/ac133f87630018fa69fbcddfb61bf2f5.jpg',
@@ -99,6 +102,8 @@ def create_gist_db():
             'https://i.pinimg.com/474x/c9/be/10/c9be10f8ac165a88d1251495ba6cf00d.jpg',
             'https://i.pinimg.com/474x/dc/ad/89/dcad89f8debe0a1e94999959206fb7ab.jpg']
     
+    # Create a table for the sms searches
+
     # Save the search image urls
     for search_image_url in search_images:
         c.execute("INSERT INTO search_image_urls (search_image_url) VALUES (?)", (search_image_url,))
@@ -359,6 +364,7 @@ def get_eval_adj_embedding(search_image_url):
     rows = c.fetchall()
     conn.close()
 
+    
     # If none, then return None
     if len(rows) == 0:
         return None
@@ -388,6 +394,231 @@ def get_eval_adj_embedding(search_image_url):
 
     # Return the embedding
     return embedding
+
+# Create an endpoint to return the closest n images to a given url
+@app.route("/get_images", methods=['GET'])
+def get_images():
+
+    # Load the gister if we haven't already
+    if not hasattr(app, 'gister'):
+
+        # Default to online data
+        internal_load_products('asos', 's3', False)
+    
+    # Get the url from the request
+    search_image_url = request.args.get("search_url")
+
+    # Get any text
+    search_text = request.args.get("text")
+
+    # Should have either a url or text, but not both
+    if search_image_url is None and search_text is None:
+        raise Exception("Must provide either a url or text")
+    if search_image_url is not None and search_text is not None:
+        raise Exception("Must provide either a url or text, but not both")
+    
+    # Get the phone number from the request
+    phone_number = request.args.get("phone_number")
+
+    # Must have a phone number
+    if phone_number is None:
+        raise Exception("Must provide a phone number")
+
+    # Get the product categories
+    categories = app.gister.get_product_categories()
+    categories = sorted(categories)
+
+    # Use the first one for now
+    category = categories[0]
+
+    # Default to get the first result
+    result_type = 'first'
+
+    # If we have a search url, we're starting a new search
+    if search_image_url is not None:
+
+        # Remove all text chats with this phone number
+        conn = sqlite3.connect(get_gist_db_path())
+        c = conn.cursor()
+        c.execute("DELETE FROM text_chats WHERE phone_number=?", (phone_number,))
+        conn.commit()
+        conn.close()
+
+        # Create an np zero vector of the right size and type float32
+        np_adj_embedding = np.zeros(app.gister.product_set.embeddings.shape[1], dtype=np.float32)
+
+    # If no image, then use the text and build the vectors
+    else:
+
+        # Load the search url and base adj_vector from the most recent text chat that has the same phone number
+        conn = sqlite3.connect(get_gist_db_path(), detect_types=sqlite3.PARSE_DECLTYPES)
+        c = conn.cursor()
+        c.execute("SELECT * FROM text_chats WHERE phone_number=? ORDER BY id DESC", (phone_number,))
+        rows = c.fetchall()
+        conn.close()
+        
+        # Get the search url from the first one
+        search_image_url = rows[0][2]
+
+        # Get the images that we sent last time
+        last_images = ast.literal_eval(rows[0][3])
+        
+        # Only expect one image last time
+        if len(last_images) != 1:
+            raise Exception("Expected one image last time")
+        last_image_url = last_images[0]
+        
+        # Get the old adj vector
+        old_adj_vector = rows[0][5]
+
+        # See if we're y or n, then we're updating an existing search
+        if search_text.strip().lower() == "y" or search_text.strip().lower() == "n":
+
+            # Get the product index
+            # TODO: Generalize this
+            product_index = app.gister.product_set.image_url_to_idx[last_image_url]
+
+            # Get the vector
+            np_adj_embedding = app.gister.product_set.embeddings[product_index]
+
+            # If 'n', then set the multiplier to -1
+            if search_text.strip().lower() == "n":
+                np_adj_embedding *= -1
+
+        # Special command to get the next one
+        elif search_text.strip().lower() == "f":
+
+            # Not going to adjust
+            np_adj_embedding = np.zeros(app.gister.product_set.embeddings.shape[1], dtype=np.float32)
+
+            # But signal to get the next one in the results
+            result_type = 'next'
+
+        # Special command to get the last one again
+        elif search_text.strip().lower() == "b":
+
+            # Not going to adjust
+            np_adj_embedding = np.zeros(app.gister.product_set.embeddings.shape[1], dtype=np.float32)
+
+            # But signal to get the next one in the results
+            result_type = 'prev'
+
+        # Otherwise, we're adding to the adj vector
+        else:
+
+            # See if the search text begins with -
+            multiplier = 1
+            if search_text.startswith("-") and len(search_text) > 1:
+
+                # Strip the -
+                search_text = search_text[1:]
+
+                # Set the multiplier to -1
+                multiplier = -1
+
+            # Get the text vector
+            with torch.no_grad():
+                text_vembeds = app.gister.texts_to_embeddings([search_text])
+                adj_embedding = text_vembeds[0] * 5 * multiplier
+
+            # Convert the adj embedding to np
+            np_adj_embedding = adj_embedding.cpu().numpy()
+
+        # And add
+        np_adj_embedding += old_adj_vector
+
+    # Get the image data
+    s_image = Image.open(requests.get(search_image_url, stream=True).raw)
+    
+    # Search
+    product_results = app.gister.search_images([s_image], category=category, num_results=50,
+                                               search_text=None, text_weight=None, 
+                                               eval_adj=np_adj_embedding, should_load_images=False)
+
+    # For now, we'll only return 1
+    if result_type == 'first':
+        product_results = product_results[:1]
+
+    elif result_type == 'next':
+
+        # Run through until we find the last image
+        for i, product in enumerate(product_results):
+                
+                # If we find the last image, then get the next one
+                if product.image_url == last_image_url:
+    
+                    # Get the next one, if there is one
+                    if i+1 < len(product_results):
+                        product_results = product_results[i+1:i+2]
+
+                    # Otherwise, just return the last one
+                    else:
+                        product_results = product_results[-1:]
+
+                    # And break
+                    break
+
+    elif result_type == 'prev':
+
+        # Run through until we find the last image
+        for i, product in enumerate(product_results):
+                
+                # If we find the last image, then get the previous one
+                if product.image_url == last_image_url:
+
+                    # Get the previous one, if there is one
+                    if i-1 >= 0:
+                        product_results = product_results[i-1:i]
+                    
+                    # Otherwise, just return the first one again    
+                    else:
+                        product_results = product_results[:1]
+    
+                    # And break
+                    break
+
+    # Create an array of dicts to return
+    results = []
+    for product in product_results:
+        p_result = {}
+
+        # Get the image url
+        p_result['image_url'] = product.image_url
+        if not p_result['image_url'].startswith("http"):
+            p_result['image_url'] = "https://" + p_result['image_url']
+
+        # And the product urls
+        p_result['product_url'] = product.url
+        
+        # And the label
+        p_result['label'] = product.label
+
+        # And add to the results
+        results.append(p_result)
+
+    # Get all of the image urls
+    image_urls = [product.image_url for product in product_results]
+
+    # Store the number and the results in the text_chats table, including the adj_embedding as a vector
+    conn = sqlite3.connect(get_gist_db_path())
+    c = conn.cursor()
+    c.execute("INSERT INTO text_chats (phone_number, search_url, urls, vector) VALUES (?, ?, ?, ?)", (phone_number, search_image_url, json.dumps(image_urls), np_adj_embedding))
+    conn.commit()
+    conn.close()
+
+    # Return the results as a json
+    return jsonify(results)
+
+def adapt_array(arr):
+    return arr.tobytes()
+
+def convert_array(blob):
+    return np.frombuffer(blob, dtype=np.float32)
+
+# NOTE: For saving / loading vectors
+sqlite3.register_adapter(np.ndarray, adapt_array)
+sqlite3.register_converter("ARRAY", convert_array)
+
 
 # Add a search image endpoint
 @app.route("/search_image", methods=['GET', 'POST'])
@@ -616,10 +847,15 @@ def hello():
     return render_template("index.html")
 
 
+# Endpoint to return the version
+@app.route("/version", methods=['GET'])
+def version():
+    return "0.0.13"
+
 if __name__ == "__main__":
 
-    # # # For debugging, load the products
-    # internal_load_products('asos', 'local', preload_all=False)
+    # # For debugging, load the products
+    internal_load_products('asos', 'local', preload_all=False)
 
     # Run on port 80
     app.run(host='0.0.0.0', port=80)

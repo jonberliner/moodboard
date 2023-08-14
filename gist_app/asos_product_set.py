@@ -155,7 +155,7 @@ class AsosProductSet(ProductSet):
         return "asos"
 
     # Get a product
-    def get_product(self, product_id: int) -> Product:
+    def get_product(self, product_id: int, should_load_image: bool = True) -> Product:
 
         # Make sure we have enough
         if product_id >= self.get_num_products():
@@ -166,7 +166,10 @@ class AsosProductSet(ProductSet):
 
         # Load if we don't already have it
         if 'image' not in product:
-            self.load_image(product_id)
+            if should_load_image:
+                self.load_image(product_id)
+            else:
+                product['image'] = None
 
         # Return the product
         return Product(label=product['name'], image=product['image'], category=self.category, 

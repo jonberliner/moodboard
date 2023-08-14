@@ -43,7 +43,7 @@ class ProductSet:
         raise NotImplementedError
 
     # Virtual function to get a product
-    def get_product(self, idx: int) -> Product:
+    def get_product(self, idx: int, should_load_image: bool = True) -> Product:
         raise NotImplementedError
 
     # Create a virtual load embeddings method
@@ -107,7 +107,7 @@ class ProductSet:
 
     # Search for an image
     def search_images(self, images: List[Image], category: str, num_results: int, weight, 
-                      search_text, text_weight, eval_adj, gister) -> List[Product]:
+                      search_text, text_weight, eval_adj, gister, should_load_images: bool = True) -> List[Product]:
 
         # Get the embeddings
         with torch.no_grad():
@@ -164,7 +164,7 @@ class ProductSet:
         # Get the products
         products = []
         for idx in idxs[0]:
-            products.append(self.get_product(category_idxs[idx]))
+            products.append(self.get_product(category_idxs[idx], should_load_images))
         return products
 
     # Function to get the product set type
