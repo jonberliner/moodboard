@@ -18,15 +18,28 @@ from product_set import ProductSet, ProductSetFactory
 
 class Gister:
 
-    def __init__(self) -> None:
+    def __init__(self, clip_type: str) -> None:
 
         # Store our products here
         self._product_set: Optional[ProductSet] = None
 
         # We'll hold the model for embedding creation here
         #   tweaked from https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPModel.forward.returns
-        self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+        self.clip_type = clip_type
+
+        # Get the right weights
+        if clip_type == "base":
+            weights = "openai/clip-vit-base-patch32"
+        elif clip_type == "fashion":
+            weights = "patrickjohncyh/fashion-clip"
+
+        # Otherwise, error
+        else:
+            raise ValueError(f"Unknown clip type: {clip_type}")
+
+        self.model = CLIPModel.from_pretrained(weights)
+        self.processor = CLIPProcessor.from_pretrained(weights)
 
     @property
     def product_set(self) -> Optional[ProductSet]:
@@ -120,7 +133,7 @@ class Gister:
         image = Image.open(requests.get(image_url, stream=True).raw)
     
         # Search
-        return self.search_image(image, category, num_results)
+        return self.search_images([image], category, num_results)
     
     # Helper to return the product categories
     def get_product_categories(self) -> List[str]:

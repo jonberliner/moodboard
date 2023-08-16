@@ -49,8 +49,15 @@ def load_products():
     else:
         use_prebuilt = True
 
+    # Get the clip type
+    clip_type = request.args.get("clip_type")
+
+    # Default to 'fashion'
+    if clip_type is None:
+        clip_type = "fashion"
+
     # Load the products
-    internal_load_products(product_type, data_source, preload_all=False, use_prebuilt=use_prebuilt)
+    internal_load_products(product_type, data_source, clip_type, preload_all=False, use_prebuilt=use_prebuilt)
 
     # Return the number of products
     return f"Loaded {app.gister.get_num_products()} products"
@@ -166,12 +173,12 @@ def search_history():
     return render_template("search_history.html", rows=rows)  
 
 
-def internal_load_products(product_type, data_source, preload_all, use_prebuilt=False):
+def internal_load_products(product_type, data_source, clip_type, preload_all, use_prebuilt=False):
 
     # Set up the gister
     with app.app_context():
 
-        g = Gister()
+        g = Gister(clip_type)
         g.load_product_set(product_type, data_source, preload_all, use_prebuilt)
 
         # And store for later
@@ -408,7 +415,7 @@ def get_images():
     if not hasattr(app, 'gister'):
 
         # Default to online data
-        internal_load_products('asos', 's3', False)
+        internal_load_products('asos', 's3', 'fashion', False)
     
     # Get the url from the request
     search_image_url = request.args.get("search_url")
@@ -633,7 +640,7 @@ def search_image():
     if not hasattr(app, 'gister'):
 
         # Default to online data
-        internal_load_products('asos', 's3', False)
+        internal_load_products('asos', 's3', 'fashion', False)
 
     # Get the image url from the submitted form
     search_image_url = request.form.get("search-url")
@@ -737,7 +744,7 @@ def search_image_2():
     if not hasattr(app, 'gister'):
 
         # Default to online data
-        internal_load_products('asos', 's3', False)
+        internal_load_products('asos', 's3', 'fashion', False)
 
     # Get the image url from the submitted form
     search_image_url = request.form.get("search-url")
@@ -863,7 +870,7 @@ def version():
 if __name__ == "__main__":
 
     # For debugging, load the products
-    internal_load_products('asos', 'local', preload_all=False)
+    internal_load_products('asos', 'local', 'fashion', preload_all=False)
 
     # Run on port 80
     app.run(host='0.0.0.0', port=80)

@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # with open("test.json", "w") as f:
 
     # Test loading the products
-    g = Gister()
+    g = Gister('fashion')
     # g.load_product_set('amazon')
     g.load_product_set('asos', 'local', preload_all=False, use_prebuilt=False)
     # g.load_product_set('asos', 's3', preload_all=False, use_prebuilt=False)

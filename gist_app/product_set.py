@@ -38,7 +38,7 @@ class ProductSet:
         raise NotImplementedError
 
     # Create a virtual function to get the embeddings path
-    def get_embeddings_path(self) -> str:
+    def get_embeddings_path(self, gister) -> str:
         raise NotImplementedError
 
     # Create a virtual function to create embeddings
@@ -57,7 +57,7 @@ class ProductSet:
             raise ValueError("No products loaded")
 
         # Load the embeddings, if we have them saved
-        embeddings_path = self.get_embeddings_path()
+        embeddings_path = self.get_embeddings_path(gister)
         if self.data_source == 'local':
 
             if os.path.exists(embeddings_path):

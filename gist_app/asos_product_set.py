@@ -52,10 +52,10 @@ class AsosProductSet(ProductSet):
         return idxs
 
     # Return the embeddings path
-    def get_embeddings_path(self) -> str:
+    def get_embeddings_path(self, gister) -> str:
 
         # Get the base name
-        e_name = f'product_embeddings_{self.category_id}.npy'
+        e_name = f'product_embeddings_{self.category_id}_{gister.clip_type}.npy'
 
         # Different sources
         if self.data_source == 'local':
