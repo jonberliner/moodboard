@@ -76,6 +76,7 @@ class AsosProductSet(ProductSet):
 
             # Error if we don't have the products
             products_path = os.path.join(AsosProductSet.get_data_path(),file_name)
+            print(products_path)
             if not os.path.exists(products_path):
                 raise ValueError("No products found")
 

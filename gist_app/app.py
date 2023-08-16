@@ -372,6 +372,7 @@ def get_eval_adj_embedding(search_image_url):
     # Create an np zero vector of the right size
     embedding = np.zeros(app.gister.product_set.embeddings.shape[1])
 
+    embeddings = []
     # Add the evaluations to the vector
     for row in rows:
 
@@ -384,16 +385,20 @@ def get_eval_adj_embedding(search_image_url):
 
         # Add if positive, subtract if negative
         if row[5] == 'Y':
+            embeddings.append(('Y', product_index, vect))
             embedding += vect
         elif row[5] == 'N':
             embedding -= vect
+            embeddings.append(('N', product_index, vect))
+
         
         # Otherwise error
         else:
             raise Exception("Invalid evaluation")
 
-    # Return the embedding
-    return embedding
+    # # Return the embedding
+    # return embedding
+    return embeddings
 
 # Create an endpoint to return the closest n images to a given url
 @app.route("/get_images", methods=['GET'])
@@ -686,6 +691,9 @@ def search_image():
 
     # Get the image data
     s_image = Image.open(requests.get(search_image_url, stream=True).raw)
+    size = 512, 512
+    s_image.thumbnail(size, Image.Resampling.LANCZOS)
+    s_image = s_image.convert("RGB")
     
     # And any evaluation adjustment
     # TODO: Put in more robustly (this is for a demo)
@@ -854,7 +862,7 @@ def version():
 
 if __name__ == "__main__":
 
-    # # For debugging, load the products
+    # For debugging, load the products
     internal_load_products('asos', 'local', preload_all=False)
 
     # Run on port 80
