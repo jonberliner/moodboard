@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pickle
 import torch
+import requests
 from typing import List
 import faiss
 from PIL import Image
@@ -311,6 +312,140 @@ class ProductSet:
         for idx in idxs:
             products.append(self.get_product(category_idxs[idx], should_load_images))
         return products
+
+    # Run through a search using the given actions
+    def perform_search(self, actions: List, num_results: int, gister) -> List[Product]:
+
+        # Start with a zero torch array of size 1, 512
+        query_vembeds = torch.zeros(1, 512)
+
+        # We don't want to keep showing items that the user says no to
+        to_remove = []
+        to_keep = []    # This is to make sure if we get a yes and no, we'll keep it
+
+        # Get the category embeddings
+        category = "WomensDresses"
+        category_idxs = self.get_category_indices(category)
+        category_vembeds = self.embeddings[category_idxs]
+
+        # Create the index to help remove duplicates
+        dim = query_vembeds.shape[1]
+        index = faiss.IndexFlatIP(dim)
+        index.add(category_vembeds)
+
+        # Run through each step and get the results
+        for step in actions:
+
+            # Should be a list with key 'actions'
+            if not isinstance(step, dict) or 'actions' not in step:
+                raise ValueError("Invalid action")
+            
+            # Go through each action
+            for a in step['actions']:
+
+                # Might be using a search image
+                if 'search_url' in a:
+                    search_url = a['search_url']
+
+                    # Get the image data
+                    s_image = Image.open(requests.get(search_url, stream=True).raw)
+                    size = 512, 512
+                    s_image.thumbnail(size, Image.Resampling.LANCZOS)
+                    s_image = s_image.convert("RGB")
+
+                    # Add the embedding
+                    with torch.no_grad():
+                        query_vembeds += gister.images_to_embeddings([s_image])
+
+                # Might be using text
+                elif 'text' in a:
+
+                    # Get the text and weight
+                    search_text = a['text']['value']
+                    text_weight = a['text']['weight']
+
+                    # And modulate
+                    with torch.no_grad():
+                        text_vembeds = gister.texts_to_embeddings([search_text])
+                    query_vembeds += text_vembeds[0] * text_weight
+
+                # Might be a yes
+                elif 'Y' in a:
+                    
+                    # Get the embedding vector
+                    y_url = a['Y']
+                    idx = self.image_url_to_idx[y_url]
+                    vect = torch.tensor(self.embeddings[idx])
+
+                    # We'll be using the residual
+                    residual = vect - query_vembeds
+
+                    # Add and make sure we keep it
+                    query_vembeds += residual * 0.5
+                    to_keep.append(idx)
+
+
+                # Might be a no
+                elif 'N' in a:
+                    
+                    # Get the embedding vector
+                    n_url = a['N']
+                    idx = self.image_url_to_idx[n_url]
+                    vect = torch.tensor(self.embeddings[idx])
+
+                    # We'll be using the residual
+                    residual = vect - query_vembeds
+
+                    # Adjust
+                    query_vembeds -= residual * 0.2
+
+                    # Want to remove, as well as any duplicates
+                    vect = vect.detach().numpy()
+                    vect = np.reshape(vect,(1, vect.size))
+                    _, _idxs = index.search(vect, 3)
+                    _idxs = list(_idxs[0])
+
+                    _cat_idxs = []
+                    for idx in _idxs:
+                        _cat_idxs.append(category_idxs[idx])
+
+                    to_remove.append(idx)
+                    to_remove += _cat_idxs
+
+        # Normalize and reform at the end
+        query_vembeds = query_vembeds / query_vembeds.norm(p=2, dim=-1, keepdim=True)
+        query_vembeds = query_vembeds.detach().numpy()
+
+        # remove nos, if we didn't set to keep them
+        for keep in to_keep:
+            if keep in to_remove:
+                to_remove.remove(keep)
+        category_idxs = np.setdiff1d(category_idxs, to_remove)
+
+        # Create the index
+        category_vembeds = self.embeddings[category_idxs]
+        dim = query_vembeds.shape[1]
+        index = faiss.IndexFlatIP(dim)
+        index.add(category_vembeds)
+
+
+        # And search
+        idxs = []
+        _, _idxs = index.search(query_vembeds, max(num_results - len(idxs), 1))
+        _idxs = list(_idxs[0])
+        idxs += _idxs
+
+        # remove dups
+        res = []
+        [res.append(x) for x in idxs if x not in res]
+        idxs = res
+
+        # Get the products
+        products = []
+        for idx in idxs:
+            products.append(self.get_product(category_idxs[idx], should_load_image=True))
+        return products
+
 
     # Function to get the product set type
     def get_type(self) -> str:

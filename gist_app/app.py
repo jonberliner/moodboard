@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from PIL import Image
 import requests
 import hashlib
@@ -96,6 +96,11 @@ def create_gist_db():
     c.execute('''CREATE TABLE text_chats
                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
                     phone_number text, search_url text, urls text, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, vector ARRAY)''')
+
+    # Create a table to store the search id, step number, and json of actions
+    c.execute('''CREATE TABLE search_steps
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    search_id integer, step_number integer, actions text)''')
 
     # Seed the search image urls
     search_images = ['https://i.pinimg.com/474x/3f/e7/00/3fe700a9b46de92a7e4b32843ecc2923.jpg',
@@ -630,6 +635,201 @@ def convert_array(blob):
 # NOTE: For saving / loading vectors
 sqlite3.register_adapter(np.ndarray, adapt_array)
 sqlite3.register_converter("ARRAY", convert_array)
+
+
+# Add an endpoint to save a search step
+@app.route("/save_search_step", methods=['POST'])
+def save_search_step():
+
+    # Get core arguments
+    search_id = int(request.form.get("search_id"))
+    step_number = int(request.form.get("step_number"))
+    num_results = int(request.form.get("num-results"))
+
+    # And any text
+    search_text = request.form.get("search-text")
+    text_weight = request.form.get("text-weight")
+
+    # Create our actions
+    actions = []
+
+    # Add the text if we have it
+    if search_text is not None and search_text != '':
+
+        # Make sure we have a weight
+        text_weight = float(text_weight)
+        actions.append({'text': {'value': search_text, 'weight': text_weight}})
+
+    # Get all the yeses and nos that were set
+    idx = 0
+    is_done = False
+    while not is_done:
+
+        # Check true and false
+        for eval in ['Y','N']:
+
+            # See if we saved a url here
+            url = request.form.get(f'Value{idx}_{eval}')
+
+            # Might be done
+            if url is None:
+                is_done = True
+                break
+
+            # Might not be set
+            if url == '':
+                continue
+
+            # Otherwise, record as an action
+            actions.append({eval: url})
+
+        # And increment
+        idx += 1
+
+    # And save with the internal function
+    return internal_save_search_step(search_id, step_number, actions, num_results)
+
+
+# An endpoint to begin a search
+@app.route("/save_begin_search", methods=['POST'])
+def save_begin_search():
+
+    # Get the image url from the submitted form
+    search_image_url = request.form.get("search-url")
+
+    # Get the other factors
+    num_results = int(request.form.get("num-results"))
+    text_weight = request.form.get("text-weight")
+    search_text = request.form.get("search-text")
+
+    # Create our actions
+    actions = []
+
+    # If we have a search url, add it
+    if search_image_url is not None and search_image_url != '':
+        actions.append({'search_url': search_image_url})
+
+    # If we have text, add it
+    if search_text is not None and search_text != '':
+        text_weight = float(text_weight)
+        actions.append({'text': {'value': search_text, 'weight': text_weight}})
+
+    # Find the highest search id in the database
+    conn = sqlite3.connect(get_gist_db_path())
+    c = conn.cursor()
+    c.execute("SELECT MAX(search_id) FROM search_steps")
+    max_search_id = c.fetchone()[0]
+    if max_search_id is None:
+        max_search_id = 0
+    conn.close()
+
+    # Save using our internal function
+    return internal_save_search_step(max_search_id+1, 1, actions, num_results)
+
+
+# Internal function for saving a search step and redirecting to the search page
+def internal_save_search_step(search_id, step_number, actions, num_results):
+
+    # First, append our designator
+    actions = [{'actions': actions}]
+
+    # Then, get the actions from the step before
+    conn = sqlite3.connect(get_gist_db_path())
+    c = conn.cursor()
+    c.execute("SELECT actions FROM search_steps WHERE search_id=? AND step_number=?", (search_id, step_number-1))
+    prev_actions = c.fetchone()
+    if prev_actions is not None:
+        prev_actions = json.loads(prev_actions[0])
+        actions = prev_actions + actions
+
+    # Save the search step
+    c.execute("INSERT INTO search_steps (search_id, step_number, actions) VALUES (?, ?, ?)", (search_id, step_number, json.dumps(actions))) 
+    conn.commit()
+    conn.close()
+
+    # And redirect to the search page
+    return redirect(url_for('search_step', search_id=search_id, step_number=step_number, num_results=num_results))
+
+
+# Add an endpoint for a search step
+@app.route("/search_step", methods=['GET'])
+def search_step():
+
+    # Get the search id
+    search_id = int(request.args.get("search_id"))
+
+    # The step
+    step_number = int(request.args.get("step_number"))
+
+    # And the number of results
+    num_results = int(request.args.get("num_results"))
+
+    # Retrieve the actions from the search step table
+    conn = sqlite3.connect(get_gist_db_path(), detect_types=sqlite3.PARSE_DECLTYPES)
+    c = conn.cursor()
+    c.execute("SELECT actions FROM search_steps WHERE search_id=? AND step_number=?", (search_id, step_number))
+    actions = c.fetchone()[0]
+    conn.close()
+
+    # Convert the actions to json
+    actions = json.loads(actions)
+
+    # And navigate through the search
+    product_results = app.gister.product_set.perform_search(actions, num_results=num_results, gister=app.gister)
+    
+    # Return the images from the products
+    result_images = [product.image for product in product_results]
+
+    # And the urls
+    urls = [product.url for product in product_results]
+
+    # And the image urls
+    result_urls = [product.image_url for product in product_results]
+
+    # Convert to base64
+    result_data = [image_to_base64(image) for image in result_images]
+
+    return render_template("search_step.html", images=result_data, num_results=num_results,
+                           urls=urls, enumerate=enumerate, result_urls=result_urls,
+                           search_id=search_id, step_number=step_number)
+
+# Add an endpoint to begin a search
+@app.route("/begin_search", methods=['GET', 'POST'])
+def begin_search():
+
+    # Load the gister if we haven't already
+    if not hasattr(app, 'gister'):
+
+        # Default to online data
+        internal_load_products('asos', 's3', 'fashion', False)
+
+    # Get the product categories
+    categories = app.gister.get_product_categories()
+
+    # Sort them alphabetically
+    categories = sorted(categories)
+
+    # Get only the second element of each tuple
+    search_image_urls = [url[1] for url in get_image_urls()]
+
+    # Use the first one
+    search_image_url = search_image_urls[0]
+
+    # Default to 20 
+    num_results = 20
+
+    # Get the image data
+    s_image = Image.open(requests.get(search_image_url, stream=True).raw)
+    size = 512, 512
+    s_image.thumbnail(size, Image.Resampling.LANCZOS)
+    s_image = s_image.convert("RGB")
+    search_data = image_to_base64(s_image)
+
+    return render_template("begin_search.html", search_image_url=search_image_url, 
+                           search_image=search_data, num_results=num_results,
+                           categories=categories, category_selected=categories[0], enumerate=enumerate, 
+                           search_image_urls=search_image_urls)
+
 
 
 # Add a search image endpoint
